@@ -10,8 +10,39 @@
 
     The script works with both standard SharePoint domains (contoso.sharepoint.com) and vanity domains (contoso.myspace.com).
 
-.PARAMETER None
-    This script does not accept parameters via the command line. Configuration is done within the script.
+.PARAMETER inputFilePath
+    Text file containing a list of sites to scan
+
+.PARAMETER appID
+    Client ID of the App Registration to use in the Connect-PnpOnline cmdlet.
+    Requires at minimum read access to all sites
+
+.PARAMETER thumbprint
+    Thumbprint of the certificate to use for authentication with the app registration
+
+.PARAMETER tenant
+    Tenant ID
+
+.PARAMETER logFilePath
+    Output log file path. Optional
+    Specify either the full path to a log file. If omitted then a log file will be created called 'Find_EEEU_In_Sites_yyyyMMdd_HHmmss.txt'
+
+.PARAMETER outputFilePath
+    Output results CSV path. Optional
+    Specify either the full path to a csv file. If omitted then a csv file will be created called 'Find_EEEU_In_Sites_yyyyMMdd_HHmmss.csv'
+
+.PARAMETER permissionLevels
+    The permission levels to scan. Can be customised if you are only looking for permissions at a specific level.
+    Options are @('Web', 'List', 'Folder', 'File', 'Group')
+    By default all levels will be scanned
+
+.PARAMETER debugLogging
+    Boolean. Enable debug logging.
+    Default is false.
+
+.PARAMETER includeLimitedAccessPermissions
+    Boolean. When set to true, permnissions with an access level of 'Limited Access' are included in the output report.
+    Default is false
 
 .INPUTS
     A text file containing SharePoint site URLs to scan (path specified in $inputFilePath variable).
@@ -34,11 +65,12 @@
         8/01/2025 - Added debug logging option
         10/15/2025 - Updated to use latest PnP PowerShell module cmdlets
         10/16/2025 - Add support for vanity domains
-        12/23/2025 - Performance improvements in get items from lists
-        12/23/2025 - Use ArrayLists for improvements
-        12/23/2025 - Add discovery for Everyone permissions
-        12/23/2025 - Support searching for Everyone/EEEU in Site Groups
-
+        12/23/2025 - Performance improvements in get items from lists (Craig Tolley)
+        12/23/2025 - Use ArrayLists for improvements (Craig Tolley)
+        12/23/2025 - Add discovery for Everyone permissions (Craig Tolley)
+        12/23/2025 - Support searching for Everyone/EEEU in Site Groups (Craig Tolley)
+        12/23/2025 - Move configuration to parameters (Craig Tolley)
+        12/23/2025 - Implement option to only scan specific objects for permissions (Craig Tolley)
 
     The script uses app-only authentication with a certificate thumbprint. Make sure the app has
     proper permissions in your tenant (SharePoint: Sites.FullControl.All is recommended).
@@ -57,23 +89,76 @@ loss of business information, or other pecuniary loss) arising out of the use of
 to use the sample scripts or documentation, even if Microsoft has been advised of the possibility of such damages.
 
 .EXAMPLE
-    .\Find-EEEUInSites.ps1
-    Executes the script with the configured settings. Ensure you've updated the variables at the top
-    of the script (appID, thumbprint, tenant, and inputFilePath) before running.
+    Executes the script using the specific values for AppId, Thumbprint and Tenant.
+    Sites in the Sites.txt file will be scanned
+
+    $appId = "5baa1427-1e90-4501-831d-a8e67465f0d9"
+    $thumbprint = "B696FDCFE1453F3FBC6031F54DE988DA0ED905A9"
+    $tenantId = "85612ccb-4c28-4a34-88df-a538cc139a51"
+
+    .\Find-EEEUInSites.ps1 -inputFilePath Sites.txt -appID $appId -thumbprint $thumbprint -tenant $tenantId
+
+.EXAMPLE
+    As above, but only scans for Group and Web level permissions
+    $appId = "5baa1427-1e90-4501-831d-a8e67465f0d9"
+    $thumbprint = "B696FDCFE1453F3FBC6031F54DE988DA0ED905A9"
+    $tenantId = "85612ccb-4c28-4a34-88df-a538cc139a51"
+    $permissionLevels = @("Group", "Web")
+
+    .\Find-EEEUInSites.ps1 -inputFilePath Sites.txt -appID $appId -thumbprint $thumbprint -tenant $tenantId -permissionLevels $permissionLevels
+
 #>
-# Tenant Level Information
-$appID = '5baa1427-1e90-4501-831d-a8e67465f0d9'                 # This is your Entra App ID
-$thumbprint = 'B696FDCFE1453F3FBC6031F54DE988DA0ED905A9'        # This is certificate thumbprint
-$tenant = '85612ccb-4c28-4a34-88df-a538cc139a51'                # This is your Tenant ID
+param (
+    # Path to the input file containing site URLs to scan
+    [Parameter(Mandatory = $true)]
+    $inputFilePath,
+
+    # Entra App ID for authentication
+    [Parameter(Mandatory = $true)]
+    $appID,
+
+    # Certificate thumbprint for authentication
+    [Parameter(Mandatory = $true)]
+    $thumbprint,
+
+    # Tenant ID for your tenant
+    [Parameter(Mandatory = $true)]
+    $tenant,
+
+    # Path to save the output log file
+    # If not specified then it will saved as 'Find_EEEU_In_Sites_yyyyMMdd_HHmmss.txt'
+    $logFilePath,
+
+    # Path to save the output CSV file
+    # If not specified then it will saved as 'Find_EEEU_In_Sites_yyyyMMdd_HHmmss.txt'
+    $outputFilePath,
+
+    # Types of object to scan. Options are Web, List, Folder, File and Group.
+    # Default is all
+    $permissionLevels = @('Web', 'List', 'Folder', 'File', 'Group'),
+
+    # Set to $true for verbose logging, $false for essential logging only
+    # Default is false
+    [bool]$debugLogging = $false,
+
+    # When set to true, 'Limited Access' permissions will be included in the report.
+    # Default is false
+    [bool]$includeLimitedAccessPermissions = $false
+)
 
 # Script Parameters
 Add-Type -AssemblyName System.Web
 $EEEU = '*spo-grid-all-users*'
 $Everyone = 'c:0(.s|true'
-$startime = Get-Date -Format 'yyyyMMdd_HHmmss'
-$includeLimitedAccessPermissions = $true
-# Path and file names
 
+$startime = Get-Date -Format 'yyyyMMdd_HHmmss'
+if ([String]::IsNullOrEmpty($logFilePath)) {
+    $logFilePath = ".\Find_EEEU_In_Sites_$($startime).txt"
+}
+
+if ([String]::IsNullOrEmpty($outputFilePath)) {
+    $outputFilePath = ".\Find_EEEU_In_Sites_$($startime).csv"
+}
 
 # List of folder patterns to ignore (uses wildcard matching for better tenant compatibility)
 $ignoreFolderPatterns = @(
@@ -98,9 +183,6 @@ $ignoreFolderPatterns = @(
     '*DO_NOT_DELETE_ENTERPRISE_USER_CONTAINER_ENUM_LIST*',  # Matches with any GUID
     '*appfiles*'
 )
-
-# Permission levels to check
-$permissionLevels = @('Web', 'List', 'Folder', 'File', 'Group')
 
 # Setup logging
 function Write-Log {
@@ -349,10 +431,11 @@ function Find-EEEUinWeb {
                         OwnerEmail  = 'N/A'
                         CreatedDate = 'N/A'
                     }
+
+                    $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
+                    Write-Host "Located EEEU/Everyone at Web level on $SiteURL" -ForegroundColor Red
+                    Write-Log "Located EEEU/Everyone at Web level on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
                 }
-                $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
-                Write-Host "Located EEEU/Everyone at Web level on $SiteURL" -ForegroundColor Red
-                Write-Log "Located EEEU/Everyone at Web level on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
             }
         }
     }
@@ -933,8 +1016,8 @@ function Find-EEEUinSiteGroups {
                 CreatedDate = ''
             }
             $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
-            Write-Host "Located EEEU/Everyone in Site Group $($group.Title) on $SiteURL" -ForegroundColor Red
-            Write-Log "Located EEEU/Everyone in Site Group $($group.Title) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
+            Write-Host "Located EEEU/Everyone in Site Group '$($group.Title)' on $SiteURL" -ForegroundColor Red
+            Write-Log "Located EEEU/Everyone in Site Group '$($group.Title)' on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
         }
     }
 }
@@ -1033,31 +1116,47 @@ function Process-SiteAndSubsites {
 
     if (Connect-SharePoint -siteURL $siteURL) {
         # Check web-level permissions
-        Find-EEEUinWeb -siteURL $siteURL -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+        if ($permissionLevels -contains 'Web') {
+            Find-EEEUinWeb -siteURL $siteURL -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+        }
 
         # Check site groups
-        Find-EEEUinSiteGroups -siteURL $siteURL -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+        if ($permissionLevels -contains 'Group') {
+            Find-EEEUinSiteGroups -siteURL $siteURL -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+        }
 
         # Check list-level permissions
-        Find-EEEUinLists -siteURL $siteURL -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+        if ($permissionLevels -contains 'List') {
+            Find-EEEUinLists -siteURL $siteURL -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+        }
 
         # Get all lists and libraries with throttling protection
-        $lists = Invoke-WithRetry -ScriptBlock {
-            Get-PnPList | Where-Object { -not $_.Hidden -and -not ($ignoreFolderPatterns | Where-Object { $_.Title -like $_ }) }
+        if ($permissionLevels -contains 'Folder' -or $permissionLevels -contains 'File') {
+            $lists = Invoke-WithRetry -ScriptBlock {
+                Get-PnPList | Where-Object { -not $_.Hidden -and -not ($ignoreFolderPatterns | Where-Object { $_.Title -like $_ }) }
+            }
+        }
+        else {
+            $Lists = [System.Collections.ArrayList]::new()
         }
 
         foreach ($list in $lists) {
-            Find-EEEUinListRootFolder -siteURL $siteURL -listTitle $list.Title -EEEUOccurrences ([ref]$siteEEEUOccurrences)
-
             $ListItems = Get-AllItemsInList -listTitleOrUrl $list.Title
+
             # Check folder-level permissions
-            foreach ($item in $ListItems | Where-Object { $_.FileSystemObjectType -eq 1 }) {
-                Find-EEEUinFolders -siteURL $siteURL -item $item -listTitle $list.Title -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+            if ($permissionLevels -contains 'Folder') {
+                Find-EEEUinListRootFolder -siteURL $siteURL -listTitle $list.Title -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+
+                foreach ($item in $ListItems | Where-Object { $_.FileSystemObjectType -eq 1 }) {
+                    Find-EEEUinFolders -siteURL $siteURL -item $item -listTitle $list.Title -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+                }
             }
 
             # Check file-level permissions
-            foreach ($item in $ListItems | Where-Object { $_.FileSystemObjectType -eq 0 }) {
-                Find-EEEUinFiles -siteURL $siteURL -item $item -listTitle $list.Title -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+            if ($permissionLevels -contains 'File') {
+                foreach ($item in $ListItems | Where-Object { $_.FileSystemObjectType -eq 0 }) {
+                    Find-EEEUinFiles -siteURL $siteURL -item $item -listTitle $list.Title -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+                }
             }
         }
 
