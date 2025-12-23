@@ -98,7 +98,7 @@ $ignoreFolderPatterns = @(
 )
 
 # Permission levels to check
-$permissionLevels = @('Web', 'List', 'Folder', 'File')
+$permissionLevels = @('Web', 'List', 'Folder', 'File', 'Group')
 
 # Setup logging
 function Write-Log {
@@ -860,6 +860,48 @@ function Find-EEEUinFiles {
     }
 }
 
+# Find EEEU in Site Level group memberships
+function Find-EEEUinSiteGroups {
+    param (
+        [string]$siteURL,
+        [ref]$EEEUOccurrences
+    )
+
+    Write-Host "Checking site group level permissions for $siteURL..." -ForegroundColor Yellow
+    Write-Log "Checking site group level permissions for $siteURL"
+
+    $Groups = Invoke-WithRetry -ScriptBlock {
+        $web = Get-PnPWeb
+        Get-PnPProperty -ClientObject $web -Property SiteGroups -ErrorAction SilentlyContinue
+    }
+
+    foreach ($group in $groups) {
+        try {
+            # Get-PnPGroupMembers returns principals in the SharePoint group
+            $members = Get-PnPGroupMember -Identity $group.Title -ErrorAction Stop
+        }
+        catch {
+            Write-Log -level 'WARNING' -message "Could not enumerate members of group '$($Group.Title)': $($_.Exception.Message)"
+        }
+
+        foreach ($m in $members | Where-Object { $_.LoginName -like $EEEU -or $_.LoginName -eq $Everyone }) {
+            $newOccurrence = [PSCustomObject]@{
+                Url         = $SiteURL
+                ItemURL     = ''
+                ItemType    = 'Group'
+                Member      = $m.Title + '(' + $m.LoginName + ')'
+                RoleNames   = ($Group.Title)
+                OwnerName   = ''
+                OwnerEmail  = ''
+                CreatedDate = ''
+            }
+            $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
+            Write-Host "Located EEEU/Everyone in Site Group $($group.Title) on $SiteURL" -ForegroundColor Red
+            Write-Log "Located EEEU/Everyone in Site Group $($group.Title) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
+        }
+    }
+}
+
 # Update the CSV output function to include ItemType
 function Write-EEEUOccurrencesToCSV {
     param (
@@ -956,6 +998,9 @@ function Process-SiteAndSubsites {
         # Check web-level permissions
         Find-EEEUinWeb -siteURL $siteURL -EEEUOccurrences ([ref]$siteEEEUOccurrences)
 
+        # Check site groups
+        Find-EEEUinSiteGroups -siteURL $siteURL -EEEUOccurrences ([ref]$siteEEEUOccurrences)
+
         # Check list-level permissions
         Find-EEEUinLists -siteURL $siteURL -EEEUOccurrences ([ref]$siteEEEUOccurrences)
 
@@ -979,8 +1024,8 @@ function Process-SiteAndSubsites {
 
         # Write the results for this site collection to the CSV
         if ($siteEEEUOccurrences.Count -gt 0) {
-            Write-Host "Writing $($siteEEEUOccurrences.Count) EEEU occurrences from $siteURL to CSV..." -ForegroundColor Cyan
-            Write-Log "About to write $($siteEEEUOccurrences.Count) EEEU occurrences from $siteURL to CSV"
+            Write-Host "Writing $($siteEEEUOccurrences.Count) EEEU/Everyone occurrences from $siteURL to CSV..." -ForegroundColor Cyan
+            Write-Log "About to write $($siteEEEUOccurrences.Count) EEEU/Everyone occurrences from $siteURL to CSV"
 
             # Debug: Log each occurrence before writing
             foreach ($occurrence in $siteEEEUOccurrences) {
