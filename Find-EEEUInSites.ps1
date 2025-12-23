@@ -64,6 +64,7 @@ $tenant = '85612ccb-4c28-4a34-88df-a538cc139a51'                # This is your T
 # Script Parameters
 Add-Type -AssemblyName System.Web
 $EEEU = '*spo-grid-all-users*'
+$Everyone = 'c:0(.s|true'
 $startime = Get-Date -Format 'yyyyMMdd_HHmmss'
 $logFilePath = "$env:TEMP\Find_EEEU_In_Sites_$startime.txt"
 $outputFilePath = "$env:TEMP\Find_EEEU_In_Sites_$startime.csv"
@@ -109,7 +110,7 @@ function Write-Log {
     # Only log essential messages when debug is false
     $essentialLevels = @('ERROR', 'WARNING')
     $isEssential = $level -in $essentialLevels -or
-    $message -like '*Located EEEU*' -or
+    $message -like '*Located EEEU/Everyone*' -or
     $message -like '*Connected to SharePoint*' -or
     $message -like '*Failed to connect*' -or
     $message -like '*Processing site:*' -or
@@ -313,33 +314,40 @@ function Find-EEEUinWeb {
                     Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
                 }
 
-                if ($RoleAssignment.Member.LoginName -like $EEEU) {
+
+                if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone) {
                     $rolelevel = $RoleAssignment.RoleDefinitionBindings
                     foreach ($role in $rolelevel) {
                         # Only add roles that are not 'Limited Access'
                         if ($role.Name -ne 'Limited Access') {
-                            $roles.Add($role.Name) | Out-Null
+                            $roles.Add([PsCustomObject]@{
+                                    Member   = $RoleAssignment.Member.Title + ' (' + $RoleAssignment.Member.LoginName + ')'
+                                    RoleName = $role.Name
+                                }) | Out-Null
                         }
                     }
                 }
             }
-        }
 
-        if ($roles.Count -gt 0) {
-            # Store "/" as the relative path for the root web
-            $relativeUrl = '/'
-            $newOccurrence = [PSCustomObject]@{
-                Url         = $SiteURL
-                ItemURL     = $relativeUrl
-                ItemType    = 'Web'
-                RoleNames   = ($roles -join ', ')
-                OwnerName   = 'N/A'
-                OwnerEmail  = 'N/A'
-                CreatedDate = 'N/A'
+            if ($roles.Count -gt 0) {
+                # Store "/" as the relative path for the root web
+                $relativeUrl = '/'
+                $roles | Group-Object member | ForEach-Object {
+                    $newOccurrence = [PSCustomObject]@{
+                        Url         = $SiteURL
+                        ItemURL     = $relativeUrl
+                        ItemType    = 'Web'
+                        Member      = $_.Name
+                        RoleNames   = ($_.Group.RoleName -join ', ')
+                        OwnerName   = 'N/A'
+                        OwnerEmail  = 'N/A'
+                        CreatedDate = 'N/A'
+                    }
+                }
+                $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
+                Write-Host "Located EEEU/Everyone at Web level on $SiteURL" -ForegroundColor Red
+                Write-Log "Located EEEU/Everyone at Web level on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
             }
-            $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
-            Write-Host "Located EEEU at Web level on $SiteURL" -ForegroundColor Red
-            Write-Log "Located EEEU at Web level on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
         }
     }
     catch {
@@ -401,12 +409,15 @@ function Find-EEEUinLists {
                         Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
                     }
 
-                    if ($RoleAssignment.Member.LoginName -like $EEEU) {
+                    if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone) {
                         $rolelevel = $RoleAssignment.RoleDefinitionBindings
                         foreach ($role in $rolelevel) {
                             # Only add roles that are not 'Limited Access'
                             if ($role.Name -ne 'Limited Access') {
-                                $roles.Add($role.Name) | Out-Null
+                                $roles.Add([PsCustomObject]@{
+                                        Member   = $RoleAssignment.Member.Title + ' (' + $RoleAssignment.Member.LoginName + ')'
+                                        RoleName = $role.Name
+                                    }) | Out-Null
                             }
                         }
                     }
@@ -464,18 +475,21 @@ function Find-EEEUinLists {
                         Write-Log "Cleaned URL result: $relativeUrl" 'DEBUG'
                     }
 
-                    $newOccurrence = [PSCustomObject]@{
-                        Url         = $SiteURL
-                        ItemURL     = $relativeUrl
-                        ItemType    = 'List'
-                        RoleNames   = ($roles -join ', ')
-                        OwnerName   = 'N/A'
-                        OwnerEmail  = 'N/A'
-                        CreatedDate = 'N/A'
+                    $roles | Group-Object member | ForEach-Object {
+                        $newOccurrence = [PSCustomObject]@{
+                            Url         = $SiteURL
+                            ItemURL     = $relativeUrl
+                            ItemType    = 'List'
+                            Member      = $_.Name
+                            RoleNames   = ($_.Group.RoleName -join ', ')
+                            OwnerName   = 'N/A'
+                            OwnerEmail  = 'N/A'
+                            CreatedDate = 'N/A'
+                        }
+                        $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
+                        Write-Host "Located EEEU/Everyone at List level: $($list.Title) on $SiteURL" -ForegroundColor Red
+                        Write-Log "Located EEEU/Everyone at List level: $($list.Title) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
                     }
-                    $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
-                    Write-Host "Located EEEU at List level: $($list.Title) on $SiteURL" -ForegroundColor Red
-                    Write-Log "Located EEEU at List level: $($list.Title) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
                 }
             }
         }
@@ -778,17 +792,19 @@ function Find-EEEUinFiles {
                     Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
                 }
 
-                if ($RoleAssignment.Member.LoginName -like $EEEU) {
+                if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone) {
                     $rolelevel = $RoleAssignment.RoleDefinitionBindings
                     foreach ($role in $rolelevel) {
                         # Only add roles that are not 'Limited Access'
                         if ($role.Name -ne 'Limited Access') {
-                            $roles.Add($role.Name) | Out-Null
+                            $roles.Add([PsCustomObject]@{
+                                    Member   = $RoleAssignment.Member.Title + ' (' + $RoleAssignment.Member.LoginName + ')'
+                                    RoleName = $role.Name
+                                }) | Out-Null
                         }
                     }
                 }
             }
-
             if ($roles.Count -gt 0) {
                 # Get file owner information
                 $owner = 'Unknown'
@@ -821,18 +837,21 @@ function Find-EEEUinFiles {
                     Write-Log "Error retrieving file owner information: $_" 'WARNING'
                 }
 
-                $newOccurrence = [PSCustomObject]@{
-                    Url         = $SiteURL
-                    ItemURL     = $file.FieldValues.FileRef
-                    ItemType    = 'File'
-                    RoleNames   = ($roles -join ', ')
-                    OwnerName   = $owner
-                    OwnerEmail  = $ownerEmail
-                    CreatedDate = $createdDate
+                $roles | Group-Object member | ForEach-Object {
+                    $newOccurrence = [PSCustomObject]@{
+                        Url         = $SiteURL
+                        ItemURL     = $file.FieldValues.FileRef
+                        ItemType    = 'File'
+                        Member      = $_.Name
+                        RoleNames   = ($_.Group.RoleName -join ', ')
+                        OwnerName   = $owner
+                        OwnerEmail  = $ownerEmail
+                        CreatedDate = $createdDate
+                    }
+                    $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
+                    Write-Host "Located EEEU/Everyone in file: $($file.FieldValues.FileLeafRef) on $SiteURL" -ForegroundColor Red
+                    Write-Log "Located EEEU/Everyone in file: $($file.FieldValues.FileLeafRef) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
                 }
-                $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
-                Write-Host "Located EEEU in file: $($file.FieldValues.FileLeafRef) on $SiteURL" -ForegroundColor Red
-                Write-Log "Located EEEU in file: $($file.FieldValues.FileLeafRef) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
             }
         }
     }
@@ -852,7 +871,7 @@ function Write-EEEUOccurrencesToCSV {
         # Create the file with headers if it doesn't exist or if we're not appending
         if (-not (Test-Path $filePath) -or -not $Append) {
             # Create empty file with headers - adding ItemType column
-            'Url,ItemURL,ItemType,RoleNames,OwnerName,OwnerEmail,CreatedDate' | Out-File -FilePath $filePath
+            'Url,ItemURL,ItemType,Member,RoleNames,OwnerName,OwnerEmail,CreatedDate' | Out-File -FilePath $filePath
         }
 
         # Group by URL, Item URL, ItemType and Roles to remove duplicates
@@ -972,8 +991,8 @@ function Process-SiteAndSubsites {
             Write-Log 'Finished writing occurrences to CSV'
         }
         else {
-            Write-Host "No EEEU occurrences found in $siteURL" -ForegroundColor Green
-            Write-Log "No EEEU occurrences found in $siteURL"
+            Write-Host "No EEEU/Everyone occurrences found in $siteURL" -ForegroundColor Green
+            Write-Log "No EEEU/Everyone occurrences found in $siteURL"
         }
 
         # Now process all subsites recursively
