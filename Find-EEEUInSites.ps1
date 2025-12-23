@@ -34,6 +34,11 @@
         8/01/2025 - Added debug logging option
         10/15/2025 - Updated to use latest PnP PowerShell module cmdlets
         10/16/2025 - Add support for vanity domains
+        12/23/2025 - Performance improvements in get items from lists
+        12/23/2025 - Use ArrayLists for improvements
+        12/23/2025 - Add discovery for Everyone permissions
+        12/23/2025 - Support searching for Everyone/EEEU in Site Groups
+
 
     The script uses app-only authentication with a certificate thumbprint. Make sure the app has
     proper permissions in your tenant (SharePoint: Sites.FullControl.All is recommended).
