@@ -3,11 +3,11 @@
     Scans SharePoint Online sites to identify occurrences of the "Everyone Except External Users" (EEEU) group in file permissions.
 
 .DESCRIPTION
-    This script connects to SharePoint Online using provided tenant-level credentials and iterates through a list of 
-    site URLs specified in an input file. It recursively scans document libraries and lists (excluding specified folders) 
-    to locate files where the "Everyone Except External Users" group has permissions assigned (excluding "Limited Access"). 
+    This script connects to SharePoint Online using provided tenant-level credentials and iterates through a list of
+    site URLs specified in an input file. It recursively scans document libraries and lists (excluding specified folders)
+    to locate files where the "Everyone Except External Users" group has permissions assigned (excluding "Limited Access").
     The script logs its operations and outputs the results to a CSV file, detailing the site URL, file URL, and assigned roles.
-    
+
     The script works with both standard SharePoint domains (contoso.sharepoint.com) and vanity domains (contoso.myspace.com).
 
 .PARAMETER None
@@ -41,14 +41,14 @@
     The script ignores several system folders and lists to improve performance and avoid errors.
 
 .DISCLAIMER
-Disclaimer: The sample scripts are provided AS IS without warranty of any kind. 
-Microsoft further disclaims all implied warranties including, without limitation, 
-any implied warranties of merchantability or of fitness for a particular purpose. 
-The entire risk arising out of the use or performance of the sample scripts and documentation remains with you. 
-In no event shall Microsoft, its authors, or anyone else involved in the creation, 
-production, or delivery of the scripts be liable for any damages whatsoever 
-(including, without limitation, damages for loss of business profits, business interruption, 
-loss of business information, or other pecuniary loss) arising out of the use of or inability 
+Disclaimer: The sample scripts are provided AS IS without warranty of any kind.
+Microsoft further disclaims all implied warranties including, without limitation,
+any implied warranties of merchantability or of fitness for a particular purpose.
+The entire risk arising out of the use or performance of the sample scripts and documentation remains with you.
+In no event shall Microsoft, its authors, or anyone else involved in the creation,
+production, or delivery of the scripts be liable for any damages whatsoever
+(including, without limitation, damages for loss of business profits, business interruption,
+loss of business information, or other pecuniary loss) arising out of the use of or inability
 to use the sample scripts or documentation, even if Microsoft has been advised of the possibility of such damages.
 
 .EXAMPLE
@@ -70,7 +70,7 @@ $outputFilePath = "$env:TEMP\Find_EEEU_In_Sites_$startime.csv"
 $debugLogging = $false  # Set to $true for verbose logging, $false for essential logging only
 
 # Path and file names
-$inputFilePath = 'C:\temp\oversharedurls3.txt' # Path to the input file containing site URLs
+
 
 # List of folder patterns to ignore (uses wildcard matching for better tenant compatibility)
 $ignoreFolderPatterns = @(
@@ -105,7 +105,7 @@ function Write-Log {
         [string]$message,
         [string]$level = 'INFO'
     )
-    
+
     # Only log essential messages when debug is false
     $essentialLevels = @('ERROR', 'WARNING')
     $isEssential = $level -in $essentialLevels -or 
@@ -115,7 +115,7 @@ function Write-Log {
     $message -like '*Processing site:*' -or
     $message -like '*Completed processing*' -or
     $message -like '*scan completed*'
-    
+
     if ($debugLogging -or $isEssential) {
         $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
         $logMessage = "$timestamp - $level - $message"
@@ -130,12 +130,12 @@ function Invoke-WithRetry {
         [int]$MaxRetries = 5,
         [int]$InitialDelaySeconds = 5
     )
-    
+
     $retryCount = 0
     $delay = $InitialDelaySeconds
     $success = $false
     $result = $null
-    
+
     while (-not $success -and $retryCount -lt $MaxRetries) {
         try {
             $result = & $ScriptBlock
@@ -143,12 +143,12 @@ function Invoke-WithRetry {
         }
         catch {
             $exception = $_.Exception
-            
+
             # Check if this is a throttling error (look for specific status codes or messages)
             $isThrottlingError = $false
             $retryAfterSeconds = $delay
-            
-            if ($exception.Response -ne $null) {
+
+            if ($exception.Response) {
                 # Check for Retry-After header
                 $retryAfterHeader = $exception.Response.Headers['Retry-After']
                 if ($retryAfterHeader) {
@@ -156,7 +156,7 @@ function Invoke-WithRetry {
                     $retryAfterSeconds = [int]$retryAfterHeader
                     Write-Log "Received Retry-After header: $retryAfterSeconds seconds" 'WARNING'
                 }
-                
+
                 # Check for 429 (Too Many Requests) or 503 (Service Unavailable)
                 $statusCode = [int]$exception.Response.StatusCode
                 if ($statusCode -eq 429 -or $statusCode -eq 503) {
@@ -164,22 +164,22 @@ function Invoke-WithRetry {
                     Write-Log "Detected throttling response (Status code: $statusCode)" 'WARNING'
                 }
             }
-            
+
             # Also check for specific throttling error messages
-            if ($exception.Message -match 'throttl' -or 
+            if ($exception.Message -match 'throttl' -or
                 $exception.Message -match 'too many requests' -or
                 $exception.Message -match 'temporarily unavailable') {
                 $isThrottlingError = $true
                 Write-Log "Detected throttling error in message: $($exception.Message)" 'WARNING'
             }
-            
+
             if ($isThrottlingError) {
                 $retryCount++
                 if ($retryCount -lt $MaxRetries) {
                     Write-Log "Throttling detected. Retry attempt $retryCount of $MaxRetries. Waiting $retryAfterSeconds seconds..." 'WARNING'
                     Write-Host "Throttling detected. Retry attempt $retryCount of $MaxRetries. Waiting $retryAfterSeconds seconds..." -ForegroundColor Yellow
                     Start-Sleep -Seconds $retryAfterSeconds
-                    
+
                     # Implement exponential backoff if no Retry-After header was provided
                     if ($retryAfterSeconds -eq $delay) {
                         $delay = $delay * 2 # Exponential backoff
@@ -193,7 +193,7 @@ function Invoke-WithRetry {
             else {
                 # Not a throttling error, rethrow
                 # Check if it's an expected error that we can handle gracefully
-                if ($_.Exception.Message -like '*Object reference not set to an instance of an object*' -or 
+                if ($_.Exception.Message -like '*Object reference not set to an instance of an object*' -or
                     $_.Exception.Message -like '*ListItemAllFields*' -or
                     $_.Exception.Message -like '*object is associated with property*') {
                     Write-Log "Expected retrieval error (likely null object reference): $($_.Exception.Message)" 'DEBUG'
@@ -208,7 +208,7 @@ function Invoke-WithRetry {
             }
         }
     }
-    
+
     return $result
 }
 
@@ -283,23 +283,23 @@ function Find-EEEUinWeb {
     try {
         Write-Host "Checking web-level permissions for $siteURL..." -ForegroundColor Yellow
         Write-Log "Checking web-level permissions for $siteURL"
-        
+
         # Get web with throttling protection
         $web = Invoke-WithRetry -ScriptBlock {
             Get-PnPWeb
         }
-        
+
         # Check if web has unique permissions
         $hasUniquePermissions = Invoke-WithRetry -ScriptBlock {
             Get-PnPProperty -ClientObject $web -Property HasUniqueRoleAssignments
         }
-        
+
         if (-not $hasUniquePermissions) {
             Write-Log 'Web does not have unique permissions. Skipping.' 'DEBUG'
             Write-Host 'Web does not have unique permissions. Skipping.' -ForegroundColor Yellow
             return
         }
-        
+
         # Get web permissions with throttling protection
         $Permissions = Invoke-WithRetry -ScriptBlock {
             Get-PnPProperty -ClientObject $web -Property RoleAssignments
@@ -312,8 +312,8 @@ function Find-EEEUinWeb {
                 Invoke-WithRetry -ScriptBlock {
                     Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
                 }
-                
-                if ($RoleAssignment.Member.LoginName -like $EEEU) {
+
+
                     $rolelevel = $RoleAssignment.RoleDefinitionBindings
                     foreach ($role in $rolelevel) {
                         # Only add roles that are not 'Limited Access'
@@ -323,6 +323,7 @@ function Find-EEEUinWeb {
                     }   
                 }
             }
+
             if ($roles.Count -gt 0) {
                 # Store "/" as the relative path for the root web
                 $relativeUrl = '/'
@@ -356,10 +357,10 @@ function Find-EEEUinLists {
     try {
         Write-Host "Checking list-level permissions for $siteURL..." -ForegroundColor Yellow
         Write-Log "Checking list-level permissions for $siteURL"
-        
+
         # Get all lists and libraries with throttling protection
         $lists = Invoke-WithRetry -ScriptBlock {
-            Get-PnPList | Where-Object { 
+            Get-PnPList | Where-Object {
                 $listTitle = $_.Title
                 $shouldIgnore = $false
                 foreach ($pattern in $ignoreFolderPatterns) {
@@ -415,7 +416,7 @@ function Find-EEEUinLists {
                     # Get the list's root folder server relative URL instead of the DefaultViewUrl
                     # This will give us the clean list URL without Forms/Views
                     $relativeUrl = ''
-                    
+
                     try {
                         # Try to get the root folder URL with throttling protection
                         $rootFolder = Invoke-WithRetry -ScriptBlock {
@@ -429,13 +430,13 @@ function Find-EEEUinLists {
                     catch {
                         Write-Log "Could not retrieve root folder for list $($list.Title): $_" 'DEBUG'
                     }
-                    
+
                     # If we can't get the root folder URL, fall back to constructing it from the list title
                     if (-not $relativeUrl -or $relativeUrl -eq '') {
                         # Parse the site URL to get the site path and construct the list path
                         $uri = New-Object System.Uri($siteURL)
                         $sitePath = $uri.AbsolutePath.TrimEnd('/')
-                        
+
                         # Handle special case for Site Pages (should be SitePages, not "Site Pages")
                         $listTitle = $list.Title
                         if ($listTitle -eq 'Site Pages') {
@@ -449,11 +450,11 @@ function Find-EEEUinLists {
                             # For other lists, replace spaces with empty string (common SharePoint URL pattern)
                             $listTitle = $listTitle.Replace(' ', '')
                         }
-                        
+
                         $relativeUrl = "$sitePath/$listTitle"
                         Write-Log "Constructed fallback URL for $($list.Title): $relativeUrl" 'DEBUG'
                     }
-                    
+
                     # Additional check: if the URL still contains Forms/ or other view paths, clean it up
                     if ($relativeUrl -like '*/Forms/*' -or $relativeUrl -like '*/Forms' -or $relativeUrl -like '*/AllItems.aspx' -or $relativeUrl -like '*ByAuthor.aspx') {
                         Write-Log "Cleaning up view path from URL: $relativeUrl" 'DEBUG'
@@ -712,7 +713,7 @@ function Find-EEEUinFiles {
                 return # Skip processing the ignored file
             }
         }
-       
+
         try {
             # Try direct approach first with throttling protection
             $file = Invoke-WithRetry -ScriptBlock {
@@ -723,10 +724,10 @@ function Find-EEEUinFiles {
             # If direct approach fails, try with URL encoding
             try {
                 Write-Log "Initial file access failed, trying with URL encoding: $fileUrl" 'WARNING'
-                
+
                 # Parse the URL into parts
                 $urlParts = $fileUrl.Split('/')
-                
+
                 # Encode each part of the URL separately (except the protocol and domain)
                 $encodedParts = @()
                 $skipEncoding = $true
@@ -740,10 +741,10 @@ function Find-EEEUinFiles {
                         $encodedParts += [System.Web.HttpUtility]::UrlEncode($part)
                     }
                 }
-                
+
                 # Rebuild the URL with encoded parts
                 $encodedFileUrl = $encodedParts -join '/'
-                
+
                 # Try with encoded URL and throttling protection
                 $file = Invoke-WithRetry -ScriptBlock {
                     Get-PnPFile -Url $encodedFileUrl -AsListItem
@@ -760,12 +761,12 @@ function Find-EEEUinFiles {
         $hasUniquePermissions = Invoke-WithRetry -ScriptBlock {
             Get-PnPProperty -ClientObject $file -Property HasUniqueRoleAssignments
         }
-        
+
         if (-not $hasUniquePermissions) {
             Write-Log "File '$($file.FieldValues.FileLeafRef)' does not have unique permissions. Skipping." 'DEBUG'
             return
         }
-        
+
         # Get permissions with throttling protection
         $Permissions = Invoke-WithRetry -ScriptBlock {
             Get-PnPProperty -ClientObject $file -Property RoleAssignments
@@ -794,24 +795,24 @@ function Find-EEEUinFiles {
                 $owner = 'Unknown'
                 $ownerEmail = 'Unknown'
                 $createdDate = 'Unknown'
-                
+
                 try {
                     # Try to get file author/owner information using PnP methods
                     if ($file.FieldValues.ContainsKey('Author')) {
                         $authorId = $file.FieldValues.Author.LookupId
-                        
+
                         if ($authorId) {
                             $ownerInfo = Invoke-WithRetry -ScriptBlock {
                                 Get-PnPUser -Identity $authorId
                             }
-                            
+
                             if ($ownerInfo) {
                                 $owner = $ownerInfo.Title
                                 $ownerEmail = $ownerInfo.Email
                             }
                         }
                     }
-                    
+
                     # Get created date
                     if ($file.FieldValues.ContainsKey('Created')) {
                         $createdDate = $file.FieldValues.Created.ToString('yyyy-MM-dd HH:mm:ss')
@@ -857,7 +858,7 @@ function Write-EEEUOccurrencesToCSV {
 
         # Group by URL, Item URL, ItemType and Roles to remove duplicates
         # Also handle cases where we might have both Forms paths and clean paths for the same list
-        $uniqueOccurrences = $OccurrencesData | 
+        $uniqueOccurrences = $OccurrencesData |
         ForEach-Object {
             # Clean up any remaining Forms paths in the ItemURL before deduplication
             if ($_.ItemURL -like '*/Forms/*' -or $_.ItemURL -like '*/Forms' -or $_.ItemURL -like '*/AllItems.aspx' -or $_.ItemURL -like '*ByAuthor.aspx') {
@@ -868,16 +869,16 @@ function Write-EEEUOccurrencesToCSV {
             }
             $_
         } |
-        Group-Object -Property Url, ItemURL, ItemType, RoleNames | 
+        Group-Object -Property Url, ItemURL, ItemType, RoleNames |
         ForEach-Object { $_.Group[0] }
-        
+
         # Append data to CSV
         foreach ($occurrence in $uniqueOccurrences) {
             # Manual CSV creation to handle special characters correctly
-            $csvLine = "`"$($occurrence.Url)`",`"$($occurrence.ItemURL)`",`"$($occurrence.ItemType)`",`"$($occurrence.RoleNames)`",`"$($occurrence.OwnerName)`",`"$($occurrence.OwnerEmail)`",`"$($occurrence.CreatedDate)`""
+            $csvLine = "`"$($occurrence.Url)`",`"$($occurrence.ItemURL)`",`"$($occurrence.ItemType)`",`"$($occurrence.Member)`",`"$($occurrence.RoleNames)`",`"$($occurrence.OwnerName)`",`"$($occurrence.OwnerEmail)`",`"$($occurrence.CreatedDate)`""
             Add-Content -Path $filePath -Value $csvLine
         }
-        
+
         Write-Log "EEEU occurrences have been written to $filePath" 'DEBUG'
     }
     catch {
@@ -891,17 +892,17 @@ function Convert-ToRelativePath {
         [string]$serverRelativePath,
         [string]$siteUrl
     )
-    
+
     try {
         # If it's already a relative path (not starting with /)
         if (-not $serverRelativePath.StartsWith('/')) {
             return $serverRelativePath
         }
-        
+
         # Parse the site URL to get the site path
         $uri = New-Object System.Uri($siteUrl)
         $sitePath = $uri.AbsolutePath
-        
+
         # If the server relative path starts with the site path, remove it
         if ($serverRelativePath.StartsWith($sitePath)) {
             $relativePath = $serverRelativePath.Substring($sitePath.Length)
@@ -911,7 +912,7 @@ function Convert-ToRelativePath {
             }
             return $relativePath
         }
-        
+
         # Return the original path if we couldn't convert it
         return $serverRelativePath
     }
@@ -926,10 +927,10 @@ function Process-SiteAndSubsites {
     param (
         [string]$siteURL
     )
-    
+
     Write-Host "Processing site: $siteURL" -ForegroundColor Green
     Write-Log "Processing site: $siteURL"
-    
+
     # Initialize local collection for this site (don't clear global yet)
     $siteEEEUOccurrences = @()
     
@@ -957,17 +958,17 @@ function Process-SiteAndSubsites {
                 }
             }
         }
-        
+
         # Write the results for this site collection to the CSV
         if ($siteEEEUOccurrences.Count -gt 0) {
             Write-Host "Writing $($siteEEEUOccurrences.Count) EEEU occurrences from $siteURL to CSV..." -ForegroundColor Cyan
             Write-Log "About to write $($siteEEEUOccurrences.Count) EEEU occurrences from $siteURL to CSV"
-            
+
             # Debug: Log each occurrence before writing
             foreach ($occurrence in $siteEEEUOccurrences) {
                 Write-Log "DEBUG - Occurrence: URL=$($occurrence.Url), ItemURL=$($occurrence.ItemURL), Type=$($occurrence.ItemType), Roles=$($occurrence.RoleNames)" 'DEBUG'
             }
-            
+
             Write-EEEUOccurrencesToCSV -filePath $outputFilePath -Append -OccurrencesData $siteEEEUOccurrences
             Write-Log 'Finished writing occurrences to CSV'
         }
@@ -975,16 +976,16 @@ function Process-SiteAndSubsites {
             Write-Host "No EEEU occurrences found in $siteURL" -ForegroundColor Green
             Write-Log "No EEEU occurrences found in $siteURL"
         }
-        
+
         # Now process all subsites recursively
         $subsites = Invoke-WithRetry -ScriptBlock {
             Get-PnPSubWeb -Recurse:$false
         }
-        
+
         if ($subsites -and $subsites.Count -gt 0) {
             Write-Host "Found $($subsites.Count) subsites to process" -ForegroundColor Yellow
             Write-Log "Found $($subsites.Count) subsites to process" 'DEBUG'
-            
+
             foreach ($subsite in $subsites) {
                 Write-Host "Processing subsite: $($subsite.Url)" -ForegroundColor Yellow
                 Write-Log "Processing subsite: $($subsite.Url)" 'DEBUG'
@@ -992,7 +993,7 @@ function Process-SiteAndSubsites {
             }
         }
     }
-    
+
     Write-Host "Completed processing for $siteURL" -ForegroundColor Green
     Write-Log "Completed processing for $siteURL"
 }
