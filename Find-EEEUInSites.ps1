@@ -263,7 +263,7 @@ function Get-AllItemsInList {
         Write-Log -message "Query URI: $uri" -level DEBUG
         $response = Invoke-PnPSPRestMethod -Url $uri -Method Get
         $responseCountPreFilter = $response.value.count
-        $filteredresponses = $response.value | Where-Object { $_ -ne $null -and $_.FileLeafRef -ne $null -and $_.HasUniqueRoleAssignments -eq 'True' }
+        $filteredresponses = $response.value | Where-Object { $_ -ne $null -and $null -ne $_.FileLeafRef -and $_.HasUniqueRoleAssignments -eq 'True' }
         Write-Log -message "Retrieved $responseCountPreFilter items, of which $($filteredresponses.count) have unique permissions" -level INFO
         Write-Host "  Retrieved $responseCountPreFilter items, of which $($filteredresponses.count) have unique permissions" -ForegroundColor Yellow
         foreach ( $r in $filteredresponses) {
@@ -591,7 +591,7 @@ function Find-EEEUinFolders {
 
                 try {
                     # Try to get folder author/owner information
-                    if ($folderItem['Author'] -ne $null) {
+                    if ($null -ne $folderItem['Author']) {
                         $authorId = $folderItem['Author'].LookupId
 
                         if ($authorId) {
@@ -607,7 +607,7 @@ function Find-EEEUinFolders {
                     }
 
                     # Get created date
-                    if ($folderItem['Created'] -ne $null) {
+                    if ($null -ne $folderItem['Created']) {
                         $createdDate = $folderItem['Created'].ToString('yyyy-MM-dd HH:mm:ss')
                     }
                 }
