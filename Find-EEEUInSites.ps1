@@ -66,10 +66,7 @@ Add-Type -AssemblyName System.Web
 $EEEU = '*spo-grid-all-users*'
 $Everyone = 'c:0(.s|true'
 $startime = Get-Date -Format 'yyyyMMdd_HHmmss'
-$logFilePath = "$env:TEMP\Find_EEEU_In_Sites_$startime.txt"
-$outputFilePath = "$env:TEMP\Find_EEEU_In_Sites_$startime.csv"
-$debugLogging = $false  # Set to $true for verbose logging, $false for essential logging only
-
+$includeLimitedAccessPermissions = $true
 # Path and file names
 
 
@@ -323,7 +320,7 @@ function Find-EEEUinWeb {
                     $rolelevel = $RoleAssignment.RoleDefinitionBindings
                     foreach ($role in $rolelevel) {
                         # Only add roles that are not 'Limited Access'
-                        if ($role.Name -ne 'Limited Access') {
+                        if ($role.Name -ne 'Limited Access' -or $includeLimitedAccessPermissions) {
                             $roles.Add([PsCustomObject]@{
                                     Member   = $RoleAssignment.Member.Title + ' (' + $RoleAssignment.Member.LoginName + ')'
                                     RoleName = $role.Name
@@ -417,7 +414,7 @@ function Find-EEEUinLists {
                         $rolelevel = $RoleAssignment.RoleDefinitionBindings
                         foreach ($role in $rolelevel) {
                             # Only add roles that are not 'Limited Access'
-                            if ($role.Name -ne 'Limited Access') {
+                            if ($role.Name -ne 'Limited Access' -or $includeLimitedAccessPermissions) {
                                 $roles.Add([PsCustomObject]@{
                                         Member   = $RoleAssignment.Member.Title + ' (' + $RoleAssignment.Member.LoginName + ')'
                                         RoleName = $role.Name
@@ -831,7 +828,7 @@ function Find-EEEUinFiles {
                     $rolelevel = $RoleAssignment.RoleDefinitionBindings
                     foreach ($role in $rolelevel) {
                         # Only add roles that are not 'Limited Access'
-                        if ($role.Name -ne 'Limited Access') {
+                        if ($role.Name -ne 'Limited Access' -or $includeLimitedAccessPermissions) {
                             $roles.Add([PsCustomObject]@{
                                     Member   = $RoleAssignment.Member.Title + ' (' + $RoleAssignment.Member.LoginName + ')'
                                     RoleName = $role.Name
