@@ -57,67 +57,67 @@ to use the sample scripts or documentation, even if Microsoft has been advised o
     of the script (appID, thumbprint, tenant, and inputFilePath) before running.
 #>
 # Tenant Level Information
-$appID = "5baa1427-1e90-4501-831d-a8e67465f0d9"                 # This is your Entra App ID
-$thumbprint = "B696FDCFE1453F3FBC6031F54DE988DA0ED905A9"        # This is certificate thumbprint
-$tenant = "85612ccb-4c28-4a34-88df-a538cc139a51"                # This is your Tenant ID
+$appID = '5baa1427-1e90-4501-831d-a8e67465f0d9'                 # This is your Entra App ID
+$thumbprint = 'B696FDCFE1453F3FBC6031F54DE988DA0ED905A9'        # This is certificate thumbprint
+$tenant = '85612ccb-4c28-4a34-88df-a538cc139a51'                # This is your Tenant ID
 
 # Script Parameters
 Add-Type -AssemblyName System.Web
 $EEEU = '*spo-grid-all-users*'
-$startime = Get-Date -Format "yyyyMMdd_HHmmss"
+$startime = Get-Date -Format 'yyyyMMdd_HHmmss'
 $logFilePath = "$env:TEMP\Find_EEEU_In_Sites_$startime.txt"
 $outputFilePath = "$env:TEMP\Find_EEEU_In_Sites_$startime.csv"
 $debugLogging = $false  # Set to $true for verbose logging, $false for essential logging only
 
 # Path and file names
-$inputFilePath = "C:\temp\oversharedurls3.txt" # Path to the input file containing site URLs
+$inputFilePath = 'C:\temp\oversharedurls3.txt' # Path to the input file containing site URLs
 
 # List of folder patterns to ignore (uses wildcard matching for better tenant compatibility)
 $ignoreFolderPatterns = @(
-    "*VivaEngage*",    #Viva Engage folder for Storyline attachments EEEU is read by default
-    "*Style Library*",
-    "*_catalogs*",
-    "*_cts*",
-    "*_private*",
-    "*_vti_pvt*",
-    "*Reference*",  # Matches any folder with "Reference" and a GUID
-    "*Sharing Links*",
-    "*Social*",
-    "*FavoriteLists*",  # Matches FavoriteLists with any GUID
-    "*User Information List*",
-    "*Web Template Extensions*",
-    "*SmartCache*",  # Matches SmartCache with any GUID
-    "*SharePointHomeCacheList*",
-    "*RecentLists*",  # Matches RecentLists with any GUID
-    "*PersonalCacheLibrary*",
-    "*microsoft.ListSync.Endpoints*",
-    "*Maintenance Log Library*",
-    "*DO_NOT_DELETE_ENTERPRISE_USER_CONTAINER_ENUM_LIST*",  # Matches with any GUID
-    "*appfiles*"
+    '*VivaEngage*',    #Viva Engage folder for Storyline attachments EEEU is read by default
+    '*Style Library*',
+    '*_catalogs*',
+    '*_cts*',
+    '*_private*',
+    '*_vti_pvt*',
+    '*Reference*',  # Matches any folder with "Reference" and a GUID
+    '*Sharing Links*',
+    '*Social*',
+    '*FavoriteLists*',  # Matches FavoriteLists with any GUID
+    '*User Information List*',
+    '*Web Template Extensions*',
+    '*SmartCache*',  # Matches SmartCache with any GUID
+    '*SharePointHomeCacheList*',
+    '*RecentLists*',  # Matches RecentLists with any GUID
+    '*PersonalCacheLibrary*',
+    '*microsoft.ListSync.Endpoints*',
+    '*Maintenance Log Library*',
+    '*DO_NOT_DELETE_ENTERPRISE_USER_CONTAINER_ENUM_LIST*',  # Matches with any GUID
+    '*appfiles*'
 )
 
 # Permission levels to check
-$permissionLevels = @("Web", "List", "Folder", "File")
+$permissionLevels = @('Web', 'List', 'Folder', 'File')
 
 # Setup logging
 function Write-Log {
     param (
         [string]$message,
-        [string]$level = "INFO"
+        [string]$level = 'INFO'
     )
     
     # Only log essential messages when debug is false
-    $essentialLevels = @("ERROR", "WARNING")
+    $essentialLevels = @('ERROR', 'WARNING')
     $isEssential = $level -in $essentialLevels -or 
-    $message -like "*Located EEEU*" -or 
-    $message -like "*Connected to SharePoint*" -or 
-    $message -like "*Failed to connect*" -or
-    $message -like "*Processing site:*" -or
-    $message -like "*Completed processing*" -or
-    $message -like "*scan completed*"
+    $message -like '*Located EEEU*' -or 
+    $message -like '*Connected to SharePoint*' -or 
+    $message -like '*Failed to connect*' -or
+    $message -like '*Processing site:*' -or
+    $message -like '*Completed processing*' -or
+    $message -like '*scan completed*'
     
     if ($debugLogging -or $isEssential) {
-        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
         $logMessage = "$timestamp - $level - $message"
         Add-Content -Path $logFilePath -Value $logMessage
     }
@@ -154,29 +154,29 @@ function Invoke-WithRetry {
                 if ($retryAfterHeader) {
                     $isThrottlingError = $true
                     $retryAfterSeconds = [int]$retryAfterHeader
-                    Write-Log "Received Retry-After header: $retryAfterSeconds seconds" "WARNING"
+                    Write-Log "Received Retry-After header: $retryAfterSeconds seconds" 'WARNING'
                 }
                 
                 # Check for 429 (Too Many Requests) or 503 (Service Unavailable)
                 $statusCode = [int]$exception.Response.StatusCode
                 if ($statusCode -eq 429 -or $statusCode -eq 503) {
                     $isThrottlingError = $true
-                    Write-Log "Detected throttling response (Status code: $statusCode)" "WARNING"
+                    Write-Log "Detected throttling response (Status code: $statusCode)" 'WARNING'
                 }
             }
             
             # Also check for specific throttling error messages
-            if ($exception.Message -match "throttl" -or 
-                $exception.Message -match "too many requests" -or
-                $exception.Message -match "temporarily unavailable") {
+            if ($exception.Message -match 'throttl' -or 
+                $exception.Message -match 'too many requests' -or
+                $exception.Message -match 'temporarily unavailable') {
                 $isThrottlingError = $true
-                Write-Log "Detected throttling error in message: $($exception.Message)" "WARNING"
+                Write-Log "Detected throttling error in message: $($exception.Message)" 'WARNING'
             }
             
             if ($isThrottlingError) {
                 $retryCount++
                 if ($retryCount -lt $MaxRetries) {
-                    Write-Log "Throttling detected. Retry attempt $retryCount of $MaxRetries. Waiting $retryAfterSeconds seconds..." "WARNING"
+                    Write-Log "Throttling detected. Retry attempt $retryCount of $MaxRetries. Waiting $retryAfterSeconds seconds..." 'WARNING'
                     Write-Host "Throttling detected. Retry attempt $retryCount of $MaxRetries. Waiting $retryAfterSeconds seconds..." -ForegroundColor Yellow
                     Start-Sleep -Seconds $retryAfterSeconds
                     
@@ -186,23 +186,23 @@ function Invoke-WithRetry {
                     }
                 }
                 else {
-                    Write-Log "Maximum retry attempts reached. Giving up on operation." "ERROR"
+                    Write-Log 'Maximum retry attempts reached. Giving up on operation.' 'ERROR'
                     throw $_
                 }
             }
             else {
                 # Not a throttling error, rethrow
                 # Check if it's an expected error that we can handle gracefully
-                if ($_.Exception.Message -like "*Object reference not set to an instance of an object*" -or 
-                    $_.Exception.Message -like "*ListItemAllFields*" -or
-                    $_.Exception.Message -like "*object is associated with property*") {
-                    Write-Log "Expected retrieval error (likely null object reference): $($_.Exception.Message)" "DEBUG"
+                if ($_.Exception.Message -like '*Object reference not set to an instance of an object*' -or 
+                    $_.Exception.Message -like '*ListItemAllFields*' -or
+                    $_.Exception.Message -like '*object is associated with property*') {
+                    Write-Log "Expected retrieval error (likely null object reference): $($_.Exception.Message)" 'DEBUG'
                 }
-                elseif ($_.Exception.Message -like "*does not exist at site*") {
-                    Write-Log "Resource not found (likely folder/list doesn't exist): $($_.Exception.Message)" "DEBUG"
+                elseif ($_.Exception.Message -like '*does not exist at site*') {
+                    Write-Log "Resource not found (likely folder/list doesn't exist): $($_.Exception.Message)" 'DEBUG'
                 }
                 else {
-                    Write-Log "General Error occurred During retrieval : $($_.Exception.Message)" "WARNING"
+                    Write-Log "General Error occurred During retrieval : $($_.Exception.Message)" 'WARNING'
                 }
                 throw $_
             }
@@ -234,7 +234,7 @@ function Connect-SharePoint {
         return $true # Connection successful
     }
     catch {
-        Write-Log "Failed to connect to SharePoint Online at $siteURL : $($_.Exception.Message)" "ERROR"
+        Write-Log "Failed to connect to SharePoint Online at $siteURL : $($_.Exception.Message)" 'ERROR'
         return $false # Connection failed
     }
 }
@@ -255,20 +255,20 @@ function Get-AllItemsInFolderAbs {
             # Only get files (items with file extensions)
             $allItems += $items | Where-Object { 
                 $_ -ne $null -and 
-                $_["FileLeafRef"] -ne $null -and 
-                $_["FileLeafRef"] -like "*.*" -and
-                $_["FSObjType"] -ne 1  # Exclude folders (FSObjType = 1 means folder)
+                $_['FileLeafRef'] -ne $null -and 
+                $_['FileLeafRef'] -like '*.*' -and
+                $_['FSObjType'] -ne 1  # Exclude folders (FSObjType = 1 means folder)
             }
         }
         return $allItems
     }
     catch {
         # Check if it's a "list does not exist" error and handle it more gracefully
-        if ($_.Exception.Message -like "*does not exist at site*") {
-            Write-Log "List/Library '$listTitleOrUrl' not found or not accessible. Skipping file retrieval." "DEBUG"
+        if ($_.Exception.Message -like '*does not exist at site*') {
+            Write-Log "List/Library '$listTitleOrUrl' not found or not accessible. Skipping file retrieval." 'DEBUG'
         }
         else {
-            Write-Log "Failed to retrieve items from list '$listTitleOrUrl': $_" "WARNING"
+            Write-Log "Failed to retrieve items from list '$listTitleOrUrl': $_" 'WARNING'
         }
         return @()
     }
@@ -295,8 +295,8 @@ function Find-EEEUinWeb {
         }
         
         if (-not $hasUniquePermissions) {
-            Write-Log "Web does not have unique permissions. Skipping." "DEBUG"
-            Write-Host "Web does not have unique permissions. Skipping." -ForegroundColor Yellow
+            Write-Log 'Web does not have unique permissions. Skipping.' 'DEBUG'
+            Write-Host 'Web does not have unique permissions. Skipping.' -ForegroundColor Yellow
             return
         }
         
@@ -325,16 +325,16 @@ function Find-EEEUinWeb {
             }
             if ($roles.Count -gt 0) {
                 # Store "/" as the relative path for the root web
-                $relativeUrl = "/"
+                $relativeUrl = '/'
                 
                 $newOccurrence = [PSCustomObject]@{
                     Url         = $SiteURL
                     ItemURL     = $relativeUrl
-                    ItemType    = "Web"
-                    RoleNames   = ($roles -join ", ")
-                    OwnerName   = "N/A" 
-                    OwnerEmail  = "N/A"
-                    CreatedDate = "N/A"
+                    ItemType    = 'Web'
+                    RoleNames   = ($roles -join ', ')
+                    OwnerName   = 'N/A' 
+                    OwnerEmail  = 'N/A'
+                    CreatedDate = 'N/A'
                 }
                 $EEEUOccurrences.Value += $newOccurrence
                 Write-Host "Located EEEU at Web level on $SiteURL" -ForegroundColor Red
@@ -343,7 +343,7 @@ function Find-EEEUinWeb {
         }
     }
     catch {
-        Write-Log "Failed to process web-level permissions: $_" "ERROR"
+        Write-Log "Failed to process web-level permissions: $_" 'ERROR'
     }
 }
 
@@ -384,7 +384,7 @@ function Find-EEEUinLists {
             }
 
             if (-not $hasUniquePermissions) {
-                Write-Log "List '$($list.Title)' does not have unique permissions. Skipping." "DEBUG"
+                Write-Log "List '$($list.Title)' does not have unique permissions. Skipping." 'DEBUG'
                 continue
             }
 
@@ -414,7 +414,7 @@ function Find-EEEUinLists {
                 if ($roles.Count -gt 0) {
                     # Get the list's root folder server relative URL instead of the DefaultViewUrl
                     # This will give us the clean list URL without Forms/Views
-                    $relativeUrl = ""
+                    $relativeUrl = ''
                     
                     try {
                         # Try to get the root folder URL with throttling protection
@@ -423,55 +423,55 @@ function Find-EEEUinLists {
                         }
                         if ($rootFolder -and $rootFolder.ServerRelativeUrl) {
                             $relativeUrl = $rootFolder.ServerRelativeUrl
-                            Write-Log "Retrieved RootFolder URL for $($list.Title): $relativeUrl" "DEBUG"
+                            Write-Log "Retrieved RootFolder URL for $($list.Title): $relativeUrl" 'DEBUG'
                         }
                     }
                     catch {
-                        Write-Log "Could not retrieve root folder for list $($list.Title): $_" "DEBUG"
+                        Write-Log "Could not retrieve root folder for list $($list.Title): $_" 'DEBUG'
                     }
                     
                     # If we can't get the root folder URL, fall back to constructing it from the list title
-                    if (-not $relativeUrl -or $relativeUrl -eq "") {
+                    if (-not $relativeUrl -or $relativeUrl -eq '') {
                         # Parse the site URL to get the site path and construct the list path
                         $uri = New-Object System.Uri($siteURL)
                         $sitePath = $uri.AbsolutePath.TrimEnd('/')
                         
                         # Handle special case for Site Pages (should be SitePages, not "Site Pages")
                         $listTitle = $list.Title
-                        if ($listTitle -eq "Site Pages") {
-                            $listTitle = "SitePages"
+                        if ($listTitle -eq 'Site Pages') {
+                            $listTitle = 'SitePages'
                         }
-                        elseif ($listTitle -eq "Shared Documents") {
+                        elseif ($listTitle -eq 'Shared Documents') {
                             # Documents library is often called "Shared Documents" in title but URL is just the folder name
-                            $listTitle = $listTitle.Replace(" ", "")
+                            $listTitle = $listTitle.Replace(' ', '')
                         }
                         else {
                             # For other lists, replace spaces with empty string (common SharePoint URL pattern)
-                            $listTitle = $listTitle.Replace(" ", "")
+                            $listTitle = $listTitle.Replace(' ', '')
                         }
                         
                         $relativeUrl = "$sitePath/$listTitle"
-                        Write-Log "Constructed fallback URL for $($list.Title): $relativeUrl" "DEBUG"
+                        Write-Log "Constructed fallback URL for $($list.Title): $relativeUrl" 'DEBUG'
                     }
                     
                     # Additional check: if the URL still contains Forms/ or other view paths, clean it up
-                    if ($relativeUrl -like "*/Forms/*" -or $relativeUrl -like "*/Forms" -or $relativeUrl -like "*/AllItems.aspx" -or $relativeUrl -like "*ByAuthor.aspx") {
-                        Write-Log "Cleaning up view path from URL: $relativeUrl" "DEBUG"
+                    if ($relativeUrl -like '*/Forms/*' -or $relativeUrl -like '*/Forms' -or $relativeUrl -like '*/AllItems.aspx' -or $relativeUrl -like '*ByAuthor.aspx') {
+                        Write-Log "Cleaning up view path from URL: $relativeUrl" 'DEBUG'
                         # Remove /Forms and everything after it, or specific view files
                         $relativeUrl = $relativeUrl -replace '/Forms.*$', ''
                         $relativeUrl = $relativeUrl -replace '/AllItems\.aspx$', ''
                         $relativeUrl = $relativeUrl -replace '/.*ByAuthor\.aspx$', ''
-                        Write-Log "Cleaned URL result: $relativeUrl" "DEBUG"
+                        Write-Log "Cleaned URL result: $relativeUrl" 'DEBUG'
                     }
                     
                     $newOccurrence = [PSCustomObject]@{
                         Url         = $SiteURL
                         ItemURL     = $relativeUrl
-                        ItemType    = "List"
-                        RoleNames   = ($roles -join ", ")
-                        OwnerName   = "N/A" 
-                        OwnerEmail  = "N/A"
-                        CreatedDate = "N/A"
+                        ItemType    = 'List'
+                        RoleNames   = ($roles -join ', ')
+                        OwnerName   = 'N/A' 
+                        OwnerEmail  = 'N/A'
+                        CreatedDate = 'N/A'
                     }
                     $EEEUOccurrences.Value += $newOccurrence
                     Write-Host "Located EEEU at List level: $($list.Title) on $SiteURL" -ForegroundColor Red
@@ -481,7 +481,7 @@ function Find-EEEUinLists {
         }
     }
     catch {
-        Write-Log "Failed to process list-level permissions: $_" "ERROR"
+        Write-Log "Failed to process list-level permissions: $_" 'ERROR'
     }
 }
 
@@ -502,21 +502,21 @@ function Find-EEEUinFolders {
         }
         
         if ($null -eq $list) {
-            Write-Log "List '$listTitle' not found" "WARNING"
+            Write-Log "List '$listTitle' not found" 'WARNING'
             return
         }
         
         # Get all folders in the list using a different approach
         $folderItems = Invoke-WithRetry -ScriptBlock {
             # Get all items that are folders
-            Get-PnPListItem -List $list -PageSize 500 | Where-Object { $_["FileLeafRef"] -ne $null -and $_["FSObjType"] -eq 1 }
+            Get-PnPListItem -List $list -PageSize 500 | Where-Object { $_['FileLeafRef'] -ne $null -and $_['FSObjType'] -eq 1 }
         }
         
-        Write-Log "Found $($folderItems.Count) folders in list '$listTitle'" "DEBUG"
+        Write-Log "Found $($folderItems.Count) folders in list '$listTitle'" 'DEBUG'
         
         foreach ($folderItem in $folderItems) {
-            $folderName = $folderItem["FileLeafRef"]
-            $folderUrl = $folderItem["FileRef"]
+            $folderName = $folderItem['FileLeafRef']
+            $folderUrl = $folderItem['FileRef']
             
             # Skip ignored folders using wildcard patterns
             $shouldIgnoreFolder = $false
@@ -536,7 +536,7 @@ function Find-EEEUinFolders {
             }
             
             if (-not $hasUniquePermissions) {
-                Write-Log "Folder '$folderName' does not have unique permissions. Skipping." "DEBUG"
+                Write-Log "Folder '$folderName' does not have unique permissions. Skipping." 'DEBUG'
                 continue
             }
             
@@ -565,14 +565,14 @@ function Find-EEEUinFolders {
                 }
                 if ($roles.Count -gt 0) {
                     # Get folder owner information if available
-                    $owner = "N/A"
-                    $ownerEmail = "N/A"
-                    $createdDate = "N/A"
+                    $owner = 'N/A'
+                    $ownerEmail = 'N/A'
+                    $createdDate = 'N/A'
                     
                     try {
                         # Try to get folder author/owner information
-                        if ($folderItem["Author"] -ne $null) {
-                            $authorId = $folderItem["Author"].LookupId
+                        if ($folderItem['Author'] -ne $null) {
+                            $authorId = $folderItem['Author'].LookupId
                             
                             if ($authorId) {
                                 $ownerInfo = Invoke-WithRetry -ScriptBlock {
@@ -587,19 +587,19 @@ function Find-EEEUinFolders {
                         }
                         
                         # Get created date
-                        if ($folderItem["Created"] -ne $null) {
-                            $createdDate = $folderItem["Created"].ToString("yyyy-MM-dd HH:mm:ss")
+                        if ($folderItem['Created'] -ne $null) {
+                            $createdDate = $folderItem['Created'].ToString('yyyy-MM-dd HH:mm:ss')
                         }
                     }
                     catch {
-                        Write-Log "Error retrieving folder owner information: $_" "WARNING"
+                        Write-Log "Error retrieving folder owner information: $_" 'WARNING'
                     }
                     
                     $newOccurrence = [PSCustomObject]@{
                         Url         = $SiteURL
                         ItemURL     = $folderUrl
-                        ItemType    = "Folder"
-                        RoleNames   = ($roles -join ", ")
+                        ItemType    = 'Folder'
+                        RoleNames   = ($roles -join ', ')
                         OwnerName   = $owner
                         OwnerEmail  = $ownerEmail
                         CreatedDate = $createdDate
@@ -626,7 +626,7 @@ function Find-EEEUinFolders {
                 }
                 
                 if (-not $hasUniquePermissions) {
-                    Write-Log "Root folder of list '$listTitle' does not have unique permissions. Skipping." "DEBUG"
+                    Write-Log "Root folder of list '$listTitle' does not have unique permissions. Skipping." 'DEBUG'
                     return
                 }
                 
@@ -657,11 +657,11 @@ function Find-EEEUinFolders {
                         $newOccurrence = [PSCustomObject]@{
                             Url         = $SiteURL
                             ItemURL     = $rootFolder.ServerRelativeUrl
-                            ItemType    = "Folder"
-                            RoleNames   = ($roles -join ", ")
-                            OwnerName   = "N/A"
-                            OwnerEmail  = "N/A"
-                            CreatedDate = "N/A"
+                            ItemType    = 'Folder'
+                            RoleNames   = ($roles -join ', ')
+                            OwnerName   = 'N/A'
+                            OwnerEmail  = 'N/A'
+                            CreatedDate = 'N/A'
                         }
                         $EEEUOccurrences.Value += $newOccurrence
                         Write-Host "Located EEEU at Root Folder level: $($list.Title) on $SiteURL" -ForegroundColor Red
@@ -672,18 +672,18 @@ function Find-EEEUinFolders {
         }
         catch {
             # Check if it's the expected ListItemAllFields error
-            if ($_.Exception.Message -like "*Object reference not set to an instance of an object*" -or 
-                $_.Exception.Message -like "*ListItemAllFields*" -or
-                $_.Exception.Message -like "*object is associated with property*") {
-                Write-Log "Expected root folder error (likely null ListItemAllFields): $($_.Exception.Message)" "DEBUG"
+            if ($_.Exception.Message -like '*Object reference not set to an instance of an object*' -or 
+                $_.Exception.Message -like '*ListItemAllFields*' -or
+                $_.Exception.Message -like '*object is associated with property*') {
+                Write-Log "Expected root folder error (likely null ListItemAllFields): $($_.Exception.Message)" 'DEBUG'
             }
             else {
-                Write-Log "Failed to process root folder permissions: $_" "WARNING"
+                Write-Log "Failed to process root folder permissions: $_" 'WARNING'
             }
         }
     }
     catch {
-        Write-Log "Failed to process folder-level permissions in list '$listTitle': $_" "ERROR"
+        Write-Log "Failed to process folder-level permissions in list '$listTitle': $_" 'ERROR'
     }
 }
 
@@ -697,7 +697,7 @@ function Find-EEEUinFiles {
     try {
         # Add null checks for the item and its properties
         if ($null -eq $item -or $null -eq $item.FieldValues -or $null -eq $item.FieldValues.FileRef) {
-            Write-Log "Item or FileRef is null, skipping file processing" "DEBUG"
+            Write-Log 'Item or FileRef is null, skipping file processing' 'DEBUG'
             return
         }
         
@@ -707,7 +707,7 @@ function Find-EEEUinFiles {
         # Check if the file URL contains any of the ignore folder patterns
         foreach ($ignorePattern in $ignoreFolderPatterns) {
             # Remove wildcards from pattern for URL matching
-            $cleanPattern = $ignorePattern.Replace("*", "")
+            $cleanPattern = $ignorePattern.Replace('*', '')
             if ($fileUrl -like "*/$cleanPattern/*" -or $fileUrl -like "*/$cleanPattern") {
                 return # Skip processing the ignored file
             }
@@ -722,7 +722,7 @@ function Find-EEEUinFiles {
         catch {
             # If direct approach fails, try with URL encoding
             try {
-                Write-Log "Initial file access failed, trying with URL encoding: $fileUrl" "WARNING"
+                Write-Log "Initial file access failed, trying with URL encoding: $fileUrl" 'WARNING'
                 
                 # Parse the URL into parts
                 $urlParts = $fileUrl.Split('/')
@@ -732,7 +732,7 @@ function Find-EEEUinFiles {
                 $skipEncoding = $true
                 foreach ($part in $urlParts) {
                     # Skip encoding for the protocol and domain parts
-                    if ($skipEncoding -and ($part -eq "https:" -or $part -eq "" -or $part -match "^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")) {
+                    if ($skipEncoding -and ($part -eq 'https:' -or $part -eq '' -or $part -match '^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')) {
                         $encodedParts += $part
                     }
                     else {
@@ -748,10 +748,10 @@ function Find-EEEUinFiles {
                 $file = Invoke-WithRetry -ScriptBlock {
                     Get-PnPFile -Url $encodedFileUrl -AsListItem
                 }
-                Write-Log "Successfully accessed file with encoded URL: $encodedFileUrl" "DEBUG"
+                Write-Log "Successfully accessed file with encoded URL: $encodedFileUrl" 'DEBUG'
             }
             catch {
-                Write-Log "Failed to access file even with URL encoding: $fileUrl - $_" "ERROR"
+                Write-Log "Failed to access file even with URL encoding: $fileUrl - $_" 'ERROR'
                 return
             }
         }
@@ -762,7 +762,7 @@ function Find-EEEUinFiles {
         }
         
         if (-not $hasUniquePermissions) {
-            Write-Log "File '$($file.FieldValues.FileLeafRef)' does not have unique permissions. Skipping." "DEBUG"
+            Write-Log "File '$($file.FieldValues.FileLeafRef)' does not have unique permissions. Skipping." 'DEBUG'
             return
         }
         
@@ -791,13 +791,13 @@ function Find-EEEUinFiles {
             }
             if ($roles.Count -gt 0) {
                 # Get file owner information
-                $owner = "Unknown"
-                $ownerEmail = "Unknown"
-                $createdDate = "Unknown"
+                $owner = 'Unknown'
+                $ownerEmail = 'Unknown'
+                $createdDate = 'Unknown'
                 
                 try {
                     # Try to get file author/owner information using PnP methods
-                    if ($file.FieldValues.ContainsKey("Author")) {
+                    if ($file.FieldValues.ContainsKey('Author')) {
                         $authorId = $file.FieldValues.Author.LookupId
                         
                         if ($authorId) {
@@ -813,19 +813,19 @@ function Find-EEEUinFiles {
                     }
                     
                     # Get created date
-                    if ($file.FieldValues.ContainsKey("Created")) {
-                        $createdDate = $file.FieldValues.Created.ToString("yyyy-MM-dd HH:mm:ss")
+                    if ($file.FieldValues.ContainsKey('Created')) {
+                        $createdDate = $file.FieldValues.Created.ToString('yyyy-MM-dd HH:mm:ss')
                     }
                 }
                 catch {
-                    Write-Log "Error retrieving file owner information: $_" "WARNING"
+                    Write-Log "Error retrieving file owner information: $_" 'WARNING'
                 }
 
                 $newOccurrence = [PSCustomObject]@{
                     Url         = $SiteURL
                     ItemURL     = $file.FieldValues.FileRef
-                    ItemType    = "File"
-                    RoleNames   = ($roles -join ", ")
+                    ItemType    = 'File'
+                    RoleNames   = ($roles -join ', ')
                     OwnerName   = $owner
                     OwnerEmail  = $ownerEmail
                     CreatedDate = $createdDate
@@ -837,7 +837,7 @@ function Find-EEEUinFiles {
         }
     }
     catch {
-        Write-Log "Failed to process file: $_" "ERROR"
+        Write-Log "Failed to process file: $_" 'ERROR'
     }
 }
 
@@ -852,7 +852,7 @@ function Write-EEEUOccurrencesToCSV {
         # Create the file with headers if it doesn't exist or if we're not appending
         if (-not (Test-Path $filePath) -or -not $Append) {
             # Create empty file with headers - adding ItemType column
-            "Url,ItemURL,ItemType,RoleNames,OwnerName,OwnerEmail,CreatedDate" | Out-File -FilePath $filePath
+            'Url,ItemURL,ItemType,RoleNames,OwnerName,OwnerEmail,CreatedDate' | Out-File -FilePath $filePath
         }
 
         # Group by URL, Item URL, ItemType and Roles to remove duplicates
@@ -860,7 +860,7 @@ function Write-EEEUOccurrencesToCSV {
         $uniqueOccurrences = $OccurrencesData | 
         ForEach-Object {
             # Clean up any remaining Forms paths in the ItemURL before deduplication
-            if ($_.ItemURL -like "*/Forms/*" -or $_.ItemURL -like "*/Forms" -or $_.ItemURL -like "*/AllItems.aspx" -or $_.ItemURL -like "*ByAuthor.aspx") {
+            if ($_.ItemURL -like '*/Forms/*' -or $_.ItemURL -like '*/Forms' -or $_.ItemURL -like '*/AllItems.aspx' -or $_.ItemURL -like '*ByAuthor.aspx') {
                 # Remove /Forms and everything after it, or specific view files
                 $_.ItemURL = $_.ItemURL -replace '/Forms.*$', ''
                 $_.ItemURL = $_.ItemURL -replace '/AllItems\.aspx$', ''
@@ -878,10 +878,10 @@ function Write-EEEUOccurrencesToCSV {
             Add-Content -Path $filePath -Value $csvLine
         }
         
-        Write-Log "EEEU occurrences have been written to $filePath" "DEBUG"
+        Write-Log "EEEU occurrences have been written to $filePath" 'DEBUG'
     }
     catch {
-        Write-Log "Failed to write EEEU occurrences to CSV file: $_" "ERROR"
+        Write-Log "Failed to write EEEU occurrences to CSV file: $_" 'ERROR'
     }
 }
 
@@ -894,7 +894,7 @@ function Convert-ToRelativePath {
     
     try {
         # If it's already a relative path (not starting with /)
-        if (-not $serverRelativePath.StartsWith("/")) {
+        if (-not $serverRelativePath.StartsWith('/')) {
             return $serverRelativePath
         }
         
@@ -906,8 +906,8 @@ function Convert-ToRelativePath {
         if ($serverRelativePath.StartsWith($sitePath)) {
             $relativePath = $serverRelativePath.Substring($sitePath.Length)
             # Ensure it starts with /
-            if (-not $relativePath.StartsWith("/")) {
-                $relativePath = "/" + $relativePath
+            if (-not $relativePath.StartsWith('/')) {
+                $relativePath = '/' + $relativePath
             }
             return $relativePath
         }
@@ -916,7 +916,7 @@ function Convert-ToRelativePath {
         return $serverRelativePath
     }
     catch {
-        Write-Log "Error converting path to relative: $_" "WARNING"
+        Write-Log "Error converting path to relative: $_" 'WARNING'
         return $serverRelativePath
     }
 }
@@ -965,11 +965,11 @@ function Process-SiteAndSubsites {
             
             # Debug: Log each occurrence before writing
             foreach ($occurrence in $siteEEEUOccurrences) {
-                Write-Log "DEBUG - Occurrence: URL=$($occurrence.Url), ItemURL=$($occurrence.ItemURL), Type=$($occurrence.ItemType), Roles=$($occurrence.RoleNames)" "DEBUG"
+                Write-Log "DEBUG - Occurrence: URL=$($occurrence.Url), ItemURL=$($occurrence.ItemURL), Type=$($occurrence.ItemType), Roles=$($occurrence.RoleNames)" 'DEBUG'
             }
             
             Write-EEEUOccurrencesToCSV -filePath $outputFilePath -Append -OccurrencesData $siteEEEUOccurrences
-            Write-Log "Finished writing occurrences to CSV"
+            Write-Log 'Finished writing occurrences to CSV'
         }
         else {
             Write-Host "No EEEU occurrences found in $siteURL" -ForegroundColor Green
@@ -983,11 +983,11 @@ function Process-SiteAndSubsites {
         
         if ($subsites -and $subsites.Count -gt 0) {
             Write-Host "Found $($subsites.Count) subsites to process" -ForegroundColor Yellow
-            Write-Log "Found $($subsites.Count) subsites to process" "DEBUG"
+            Write-Log "Found $($subsites.Count) subsites to process" 'DEBUG'
             
             foreach ($subsite in $subsites) {
                 Write-Host "Processing subsite: $($subsite.Url)" -ForegroundColor Yellow
-                Write-Log "Processing subsite: $($subsite.Url)" "DEBUG"
+                Write-Log "Processing subsite: $($subsite.Url)" 'DEBUG'
                 Process-SiteAndSubsites -siteURL $subsite.Url
             }
         }
