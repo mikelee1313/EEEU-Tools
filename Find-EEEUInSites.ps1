@@ -108,9 +108,9 @@ function Write-Log {
 
     # Only log essential messages when debug is false
     $essentialLevels = @('ERROR', 'WARNING')
-    $isEssential = $level -in $essentialLevels -or 
-    $message -like '*Located EEEU*' -or 
-    $message -like '*Connected to SharePoint*' -or 
+    $isEssential = $level -in $essentialLevels -or
+    $message -like '*Located EEEU*' -or
+    $message -like '*Connected to SharePoint*' -or
     $message -like '*Failed to connect*' -or
     $message -like '*Processing site:*' -or
     $message -like '*Completed processing*' -or
@@ -246,19 +246,19 @@ function Get-AllItemsInFolderAbs {
         [string]$listTitleOrUrl
     )
     try {
-        $allItems = @()
+        $allItems = [System.Collections.ArrayList]::new()
         if ($listTitleOrUrl) {
             # Get items from the list/library (not treating it as a folder URL)
             $items = Invoke-WithRetry -ScriptBlock {
                 Get-PnPListItem -List $listTitleOrUrl -PageSize 500
             }
             # Only get files (items with file extensions)
-            $allItems += $items | Where-Object { 
-                $_ -ne $null -and 
-                $_['FileLeafRef'] -ne $null -and 
+            $items | Where-Object {
+                $_ -ne $null -and
+                $_['FileLeafRef'] -ne $null -and
                 $_['FileLeafRef'] -like '*.*' -and
                 $_['FSObjType'] -ne 1  # Exclude folders (FSObjType = 1 means folder)
-            }
+            } | ForEach-Object { $allItems.Add($_) | Out-Null }
         }
         return $allItems
     }
@@ -270,7 +270,7 @@ function Get-AllItemsInFolderAbs {
         else {
             Write-Log "Failed to retrieve items from list '$listTitleOrUrl': $_" 'WARNING'
         }
-        return @()
+        return [System.Collections.ArrayList]::new()
     }
 }
 
@@ -306,41 +306,40 @@ function Find-EEEUinWeb {
         }
 
         if ($Permissions) {
-            $roles = @()
+            $roles = [System.Collections.ArrayList]::new()
             foreach ($RoleAssignment in $Permissions) {
                 # Get role assignments with throttling protection
                 Invoke-WithRetry -ScriptBlock {
                     Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
                 }
 
-
+                if ($RoleAssignment.Member.LoginName -like $EEEU) {
                     $rolelevel = $RoleAssignment.RoleDefinitionBindings
                     foreach ($role in $rolelevel) {
                         # Only add roles that are not 'Limited Access'
                         if ($role.Name -ne 'Limited Access') {
-                            $roles += $role.Name
+                            $roles.Add($role.Name) | Out-Null
                         }
-                    }   
+                    }
                 }
             }
+        }
 
-            if ($roles.Count -gt 0) {
-                # Store "/" as the relative path for the root web
-                $relativeUrl = '/'
-                
-                $newOccurrence = [PSCustomObject]@{
-                    Url         = $SiteURL
-                    ItemURL     = $relativeUrl
-                    ItemType    = 'Web'
-                    RoleNames   = ($roles -join ', ')
-                    OwnerName   = 'N/A' 
-                    OwnerEmail  = 'N/A'
-                    CreatedDate = 'N/A'
-                }
-                $EEEUOccurrences.Value += $newOccurrence
-                Write-Host "Located EEEU at Web level on $SiteURL" -ForegroundColor Red
-                Write-Log "Located EEEU at Web level on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
+        if ($roles.Count -gt 0) {
+            # Store "/" as the relative path for the root web
+            $relativeUrl = '/'
+            $newOccurrence = [PSCustomObject]@{
+                Url         = $SiteURL
+                ItemURL     = $relativeUrl
+                ItemType    = 'Web'
+                RoleNames   = ($roles -join ', ')
+                OwnerName   = 'N/A'
+                OwnerEmail  = 'N/A'
+                CreatedDate = 'N/A'
             }
+            $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
+            Write-Host "Located EEEU at Web level on $SiteURL" -ForegroundColor Red
+            Write-Log "Located EEEU at Web level on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
         }
     }
     catch {
@@ -395,21 +394,21 @@ function Find-EEEUinLists {
             }
 
             if ($Permissions) {
-                $roles = @()
+                $roles = [System.Collections.ArrayList]::new()
                 foreach ($RoleAssignment in $Permissions) {
                     # Get role assignments with throttling protection
                     Invoke-WithRetry -ScriptBlock {
                         Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
                     }
-                    
+
                     if ($RoleAssignment.Member.LoginName -like $EEEU) {
                         $rolelevel = $RoleAssignment.RoleDefinitionBindings
                         foreach ($role in $rolelevel) {
                             # Only add roles that are not 'Limited Access'
                             if ($role.Name -ne 'Limited Access') {
-                                $roles += $role.Name
+                                $roles.Add($role.Name) | Out-Null
                             }
-                        }   
+                        }
                     }
                 }
                 if ($roles.Count -gt 0) {
@@ -464,17 +463,17 @@ function Find-EEEUinLists {
                         $relativeUrl = $relativeUrl -replace '/.*ByAuthor\.aspx$', ''
                         Write-Log "Cleaned URL result: $relativeUrl" 'DEBUG'
                     }
-                    
+
                     $newOccurrence = [PSCustomObject]@{
                         Url         = $SiteURL
                         ItemURL     = $relativeUrl
                         ItemType    = 'List'
                         RoleNames   = ($roles -join ', ')
-                        OwnerName   = 'N/A' 
+                        OwnerName   = 'N/A'
                         OwnerEmail  = 'N/A'
                         CreatedDate = 'N/A'
                     }
-                    $EEEUOccurrences.Value += $newOccurrence
+                    $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
                     Write-Host "Located EEEU at List level: $($list.Title) on $SiteURL" -ForegroundColor Red
                     Write-Log "Located EEEU at List level: $($list.Title) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
                 }
@@ -496,29 +495,29 @@ function Find-EEEUinFolders {
     try {
         Write-Host "Checking folder-level permissions in list '$listTitle'..." -ForegroundColor Yellow
         Write-Log "Checking folder-level permissions in list '$listTitle'..."
-        
+
         # Get the list object first
         $list = Invoke-WithRetry -ScriptBlock {
             Get-PnPList -Identity $listTitle -ErrorAction Stop
         }
-        
+
         if ($null -eq $list) {
             Write-Log "List '$listTitle' not found" 'WARNING'
             return
         }
-        
+
         # Get all folders in the list using a different approach
         $folderItems = Invoke-WithRetry -ScriptBlock {
             # Get all items that are folders
             Get-PnPListItem -List $list -PageSize 500 | Where-Object { $_['FileLeafRef'] -ne $null -and $_['FSObjType'] -eq 1 }
         }
-        
+
         Write-Log "Found $($folderItems.Count) folders in list '$listTitle'" 'DEBUG'
-        
+
         foreach ($folderItem in $folderItems) {
             $folderName = $folderItem['FileLeafRef']
             $folderUrl = $folderItem['FileRef']
-            
+
             # Skip ignored folders using wildcard patterns
             $shouldIgnoreFolder = $false
             foreach ($pattern in $ignoreFolderPatterns) {
@@ -530,22 +529,22 @@ function Find-EEEUinFolders {
             if ($shouldIgnoreFolder) {
                 continue
             }
-            
+
             # Check if folder has unique permissions
             $hasUniquePermissions = Invoke-WithRetry -ScriptBlock {
                 Get-PnPProperty -ClientObject $folderItem -Property HasUniqueRoleAssignments
             }
-            
+
             if (-not $hasUniquePermissions) {
                 Write-Log "Folder '$folderName' does not have unique permissions. Skipping." 'DEBUG'
                 continue
             }
-            
+
             # Get folder permissions
             $Permissions = Invoke-WithRetry -ScriptBlock {
                 Get-PnPProperty -ClientObject $folderItem -Property RoleAssignments
             }
-            
+
             if ($Permissions) {
                 $roles = @()
                 foreach ($RoleAssignment in $Permissions) {
@@ -553,7 +552,7 @@ function Find-EEEUinFolders {
                     Invoke-WithRetry -ScriptBlock {
                         Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
                     }
-                    
+
                     if ($RoleAssignment.Member.LoginName -like $EEEU) {
                         $rolelevel = $RoleAssignment.RoleDefinitionBindings
                         foreach ($role in $rolelevel) {
@@ -561,7 +560,7 @@ function Find-EEEUinFolders {
                             if ($role.Name -ne 'Limited Access') {
                                 $roles += $role.Name
                             }
-                        }   
+                        }
                     }
                 }
                 if ($roles.Count -gt 0) {
@@ -569,24 +568,24 @@ function Find-EEEUinFolders {
                     $owner = 'N/A'
                     $ownerEmail = 'N/A'
                     $createdDate = 'N/A'
-                    
+
                     try {
                         # Try to get folder author/owner information
                         if ($folderItem['Author'] -ne $null) {
                             $authorId = $folderItem['Author'].LookupId
-                            
+
                             if ($authorId) {
                                 $ownerInfo = Invoke-WithRetry -ScriptBlock {
                                     Get-PnPUser -Identity $authorId
                                 }
-                                
+
                                 if ($ownerInfo) {
                                     $owner = $ownerInfo.Title
                                     $ownerEmail = $ownerInfo.Email
                                 }
                             }
                         }
-                        
+
                         # Get created date
                         if ($folderItem['Created'] -ne $null) {
                             $createdDate = $folderItem['Created'].ToString('yyyy-MM-dd HH:mm:ss')
@@ -595,7 +594,7 @@ function Find-EEEUinFolders {
                     catch {
                         Write-Log "Error retrieving folder owner information: $_" 'WARNING'
                     }
-                    
+
                     $newOccurrence = [PSCustomObject]@{
                         Url         = $SiteURL
                         ItemURL     = $folderUrl
@@ -701,10 +700,9 @@ function Find-EEEUinFiles {
             Write-Log 'Item or FileRef is null, skipping file processing' 'DEBUG'
             return
         }
-        
-        $file = @()
+        $file = [System.Collections.ArrayList]::new()
         $fileUrl = $item.FieldValues.FileRef
-        
+
         # Check if the file URL contains any of the ignore folder patterns
         foreach ($ignorePattern in $ignoreFolderPatterns) {
             # Remove wildcards from pattern for URL matching
@@ -729,16 +727,16 @@ function Find-EEEUinFiles {
                 $urlParts = $fileUrl.Split('/')
 
                 # Encode each part of the URL separately (except the protocol and domain)
-                $encodedParts = @()
+                $encodedParts = [System.Collections.ArrayList]::new()
                 $skipEncoding = $true
                 foreach ($part in $urlParts) {
                     # Skip encoding for the protocol and domain parts
                     if ($skipEncoding -and ($part -eq 'https:' -or $part -eq '' -or $part -match '^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')) {
-                        $encodedParts += $part
+                        $encodedParts.Add($part) | Out-Null
                     }
                     else {
                         $skipEncoding = $false
-                        $encodedParts += [System.Web.HttpUtility]::UrlEncode($part)
+                        $encodedParts.Add([System.Web.HttpUtility]::UrlEncode($part)) | Out-Null
                     }
                 }
 
@@ -773,7 +771,7 @@ function Find-EEEUinFiles {
         }
 
         if ($Permissions) {
-            $roles = @()
+            $roles = [System.Collections.ArrayList]::new()
             foreach ($RoleAssignment in $Permissions) {
                 # Get role assignments with throttling protection
                 Invoke-WithRetry -ScriptBlock {
@@ -785,11 +783,12 @@ function Find-EEEUinFiles {
                     foreach ($role in $rolelevel) {
                         # Only add roles that are not 'Limited Access'
                         if ($role.Name -ne 'Limited Access') {
-                            $roles += $role.Name
+                            $roles.Add($role.Name) | Out-Null
                         }
-                    }   
+                    }
                 }
             }
+
             if ($roles.Count -gt 0) {
                 # Get file owner information
                 $owner = 'Unknown'
@@ -831,7 +830,7 @@ function Find-EEEUinFiles {
                     OwnerEmail  = $ownerEmail
                     CreatedDate = $createdDate
                 }
-                $EEEUOccurrences.Value += $newOccurrence
+                $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
                 Write-Host "Located EEEU in file: $($file.FieldValues.FileLeafRef) on $SiteURL" -ForegroundColor Red
                 Write-Log "Located EEEU in file: $($file.FieldValues.FileLeafRef) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
             }
@@ -932,24 +931,24 @@ function Process-SiteAndSubsites {
     Write-Log "Processing site: $siteURL"
 
     # Initialize local collection for this site (don't clear global yet)
-    $siteEEEUOccurrences = @()
-    
+    $siteEEEUOccurrences = [System.Collections.ArrayList]::new()
+
     if (Connect-SharePoint -siteURL $siteURL) {
         # Check web-level permissions
         Find-EEEUinWeb -siteURL $siteURL -EEEUOccurrences ([ref]$siteEEEUOccurrences)
-        
+
         # Check list-level permissions
         Find-EEEUinLists -siteURL $siteURL -EEEUOccurrences ([ref]$siteEEEUOccurrences)
-        
+
         # Get all lists and libraries with throttling protection
         $lists = Invoke-WithRetry -ScriptBlock {
             Get-PnPList | Where-Object { -not $_.Hidden -and -not ($ignoreFolderPatterns | Where-Object { $_.Title -like $_ }) }
         }
-        
+
         foreach ($list in $lists) {
             # Check folder-level permissions
             Find-EEEUinFolders -siteURL $siteURL -listTitle $list.Title -EEEUOccurrences ([ref]$siteEEEUOccurrences)
-            
+
             # Check file-level permissions
             $allItems = Get-AllItemsInFolderAbs -siteURL $siteURL -listTitleOrUrl $list.Title
             foreach ($item in $allItems) {
