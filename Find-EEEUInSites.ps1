@@ -1202,6 +1202,26 @@ function Process-SiteAndSubsites {
     Write-Log "Completed processing for $siteURL"
 }
 
+Write-Host ''
+Write-Host '======================================================' -ForegroundColor 'Cyan'
+Write-Host 'SCRIPT MODE: DETECTION'
+Write-Host "  - Scanning for permissions at the $($permissionLevels -join ', ') level(s)"
+Write-Host '  - Included identities are:'
+Write-Host "    - Everyone ($Everyone)"
+Write-Host "    - Everyone Except External Users ($EEEU)"
+Write-Host "    - All Users (Windows) ($AllUsers) - a legacy claim similar in scope to EEEU"
+Write-Host "  - Results will be saved to: $outputFilePath" -ForegroundColor Cyan
+Write-Host "  - Log File will be saved to: $logFilePath" -ForegroundColor Cyan
+if ($includeLimitedAccessPermissions) {
+    Write-Host '  - Limited Access permissions will be included' -ForegroundColor Cyan
+}
+if ($debugLogging) {
+    Write-Host '  - Debug logging is enabled' -ForegroundColor Cyan
+}
+Write-Host '  - NO modifications will be made to permissions' -ForegroundColor Cyan
+Write-Host '======================================================' -ForegroundColor 'Cyan'
+Write-Host ''
+
 # Main script execution
 $siteURLs = Read-SiteURLs -filePath $inputFilePath
 
