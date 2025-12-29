@@ -205,7 +205,7 @@ function Write-Log {
     if ($debugLogging -or $isEssential) {
         $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
         $logMessage = "$timestamp - $level - $message"
-        Add-Content -Path $logFilePath -Value $logMessage
+        Add-Content -Path $logFilePath -Value $logMessage -ErrorAction Stop
     }
 }
 
@@ -1034,6 +1034,7 @@ function Write-EEEUOccurrencesToCSV {
         # Create the file with headers if it doesn't exist or if we're not appending
         if (-not (Test-Path $filePath) -or -not $Append) {
             # Create empty file with headers - adding ItemType column
+            Write-Host "Creating output CSV file at $filePath"
             'Url,ItemURL,ItemType,Member,RoleNames,OwnerName,OwnerEmail,CreatedDate' | Out-File -FilePath $filePath
         }
 
@@ -1064,6 +1065,7 @@ function Write-EEEUOccurrencesToCSV {
     }
     catch {
         Write-Log "Failed to write EEEU occurrences to CSV file: $_" 'ERROR'
+        Write-Error "Failed to write EEEU occurrences to CSV file: $_" -ErrorAction Stop
     }
 }
 
