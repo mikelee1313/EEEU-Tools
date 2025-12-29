@@ -150,6 +150,7 @@ param (
 Add-Type -AssemblyName System.Web
 $EEEU = '*spo-grid-all-users*'
 $Everyone = 'c:0(.s|true'
+$AllUsers = 'c:0!.s|windows' # Shows as 'All Users (Windows)' - a legacy claim that is similar in scope to EEEU
 
 $startime = Get-Date -Format 'yyyyMMdd_HHmmss'
 if ([String]::IsNullOrEmpty($logFilePath)) {
@@ -403,7 +404,7 @@ function Find-EEEUinWeb {
                 }
 
 
-                if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone) {
+                if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone -or $RoleAssignment.Member.LoginName -eq $AllUsers) {
                     $rolelevel = $RoleAssignment.RoleDefinitionBindings
                     foreach ($role in $rolelevel) {
                         # Only add roles that are not 'Limited Access'
@@ -498,7 +499,7 @@ function Find-EEEUinLists {
                         Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
                     }
 
-                    if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone) {
+                    if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone -or $RoleAssignment.Member.LoginName -eq $AllUsers) {
                         $rolelevel = $RoleAssignment.RoleDefinitionBindings
                         foreach ($role in $rolelevel) {
                             # Only add roles that are not 'Limited Access'
@@ -653,7 +654,7 @@ function Find-EEEUinFolders {
                     Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
                 }
 
-                if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone) {
+                if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone -or $RoleAssignment.Member.LoginName -eq $AllUsers) {
                     $rolelevel = $RoleAssignment.RoleDefinitionBindings
                     foreach ($role in $rolelevel) {
                         # Only add roles that are not 'Limited Access'
@@ -772,7 +773,7 @@ function Find-EEEUinListRootFolder {
                         Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
                     }
 
-                    if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone) {
+                    if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone -or $RoleAssignment.Member.LoginName -eq $AllUsers) {
                         $rolelevel = $RoleAssignment.RoleDefinitionBindings
                         foreach ($role in $rolelevel) {
                             # Only add roles that are not 'Limited Access'
@@ -912,7 +913,7 @@ function Find-EEEUinFiles {
                     Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
                 }
 
-                if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone) {
+                if ($RoleAssignment.Member.LoginName -like $EEEU -or $RoleAssignment.Member.LoginName -eq $Everyone -or $RoleAssignment.Member.LoginName -eq $AllUsers) {
                     $rolelevel = $RoleAssignment.RoleDefinitionBindings
                     foreach ($role in $rolelevel) {
                         # Only add roles that are not 'Limited Access'
@@ -1004,7 +1005,7 @@ function Find-EEEUinSiteGroups {
             Write-Log -level 'WARNING' -message "Could not enumerate members of group '$($Group.Title)': $($_.Exception.Message)"
         }
 
-        foreach ($m in $members | Where-Object { $_.LoginName -like $EEEU -or $_.LoginName -eq $Everyone }) {
+        foreach ($m in $members | Where-Object { $_.LoginName -like $EEEU -or $_.LoginName -eq $Everyone -or $_.LoginName -eq $AllUsers }) {
             $newOccurrence = [PSCustomObject]@{
                 Url         = $SiteURL
                 ItemURL     = ''
