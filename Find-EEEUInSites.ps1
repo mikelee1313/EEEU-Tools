@@ -993,7 +993,14 @@ function Find-EEEUinSiteGroups {
 
     $Groups = Invoke-WithRetry -ScriptBlock {
         $web = Get-PnPWeb
-        Get-PnPProperty -ClientObject $web -Property SiteGroups -ErrorAction SilentlyContinue
+
+        if ($web.IsRootWeb) {
+            Get-PnPProperty -ClientObject $web -Property SiteGroups -ErrorAction SilentlyContinue
+        }
+        else {
+            Write-Host "Site $siteURL is a subweb. Skipping group check as they inherit from the parent web"
+            Write-Log -level 'INFO' -message "Site $siteURL is a subweb. Skipping group check as they inherit from the parent web"
+        }
     }
 
     foreach ($group in $groups) {
