@@ -1017,7 +1017,7 @@ function Find-EEEUinSiteGroups {
                 Url         = $SiteURL
                 ItemURL     = ''
                 ItemType    = 'Group'
-                Member      = $m.Title + '(' + $m.LoginName + ')'
+                Member      = $m.Title + ' (' + $m.LoginName + ')'
                 RoleNames   = ($Group.Title)
                 OwnerName   = ''
                 OwnerEmail  = ''
