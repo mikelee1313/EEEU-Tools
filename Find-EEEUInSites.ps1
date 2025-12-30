@@ -328,14 +328,14 @@ function Connect-SharePoint {
 # Get all items in a folder and subfolders (using absolute URLs)
 function Get-AllItemsInList {
     param (
-        [string]$listTitleOrUrl
+        [string]$listTitleOrUrl,
+        [string]$listId
     )
 
     # Get list GUID to use in REST
-    $list = Get-PnPList -Identity $listTitleOrUrl
     Write-Host "  Getting items in '$listTitleOrUrl'" -ForegroundColor Yellow
     # Base REST URL
-    $baseUrl = "/_api/web/lists(guid'$($list.Id)')/items"
+    $baseUrl = "/_api/web/lists(guid'$($listId)')/items"
     $select = 'Id,UniqueId,FileLeafRef,FileRef,HasUniqueRoleAssignments,FileSystemObjectType'
 
     $top = 5000
@@ -1151,7 +1151,7 @@ function Process-SiteAndSubsites {
         }
 
         foreach ($list in $lists) {
-            $ListItems = Get-AllItemsInList -listTitleOrUrl $list.Title
+            $ListItems = Get-AllItemsInList -listTitleOrUrl $list.Title -listId $list.Id
 
             # Check folder-level permissions
             if ($permissionLevels -contains 'Folder') {
