@@ -1058,7 +1058,7 @@ function Write-EEEUOccurrencesToCSV {
             }
             $_
         } |
-        Group-Object -Property Url, ItemURL, ItemType, RoleNames |
+        Group-Object -Property Url, ItemURL, ItemType, RoleNames, Member |
         ForEach-Object { $_.Group[0] }
 
         # Append data to CSV
