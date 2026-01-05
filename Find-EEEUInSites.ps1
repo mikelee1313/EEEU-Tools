@@ -434,8 +434,8 @@ function Find-EEEUinWeb {
                     }
 
                     $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
-                    Write-Host "Located EEEU/Everyone at Web level on $SiteURL" -ForegroundColor Red
-                    Write-Log "Located EEEU/Everyone at Web level on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
+                    Write-Host "Located '$($_.Name)' at Web level on $SiteURL" -ForegroundColor Red
+                    Write-Log "Located '$($_.Name)' at Web level on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
                 }
             }
         }
@@ -577,8 +577,8 @@ function Find-EEEUinLists {
                             CreatedDate = 'N/A'
                         }
                         $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
-                        Write-Host "Located EEEU/Everyone at List level: $($list.Title) on $SiteURL" -ForegroundColor Red
-                        Write-Log "Located EEEU/Everyone at List level: $($list.Title) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
+                        Write-Host "Located '$($_.Name)' at List level: $($list.Title) on $SiteURL" -ForegroundColor Red
+                        Write-Log "Located '$($_.Name)' at List level: $($list.Title) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
                     }
                 }
             }
@@ -711,8 +711,8 @@ function Find-EEEUinFolders {
                         CreatedDate = $createdDate
                     }
                     $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
-                    Write-Host "Located EEEU/Everyone at Folder level: $folderName on $SiteURL" -ForegroundColor Red
-                    Write-Log "Located EEEU/Everyone at Folder level: $folderName on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
+                    Write-Host "Located '$($_.Name)' at Folder level: $folderName on $SiteURL" -ForegroundColor Red
+                    Write-Log "Located '$($_.Name)' at Folder level: $folderName on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
                 }
             }
         }
@@ -799,8 +799,8 @@ function Find-EEEUinListRootFolder {
                             CreatedDate = 'N/A'
                         }
                         $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
-                        Write-Host "Located EEEU/Everyone at Root Folder level: $($list.Title) on $SiteURL" -ForegroundColor Red
-                        Write-Log "Located EEEU/Everyone at Root Folder level: $($list.Title) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
+                        Write-Host "Located '$($_.Name)' at Root Folder level: $($list.Title) on $SiteURL" -ForegroundColor Red
+                        Write-Log "Located '$($_.Name)' at Root Folder level: $($list.Title) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
                     }
                 }
             }
@@ -970,8 +970,8 @@ function Find-EEEUinFiles {
                         CreatedDate = $createdDate
                     }
                     $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
-                    Write-Host "Located EEEU/Everyone in file: $($file.FieldValues.FileLeafRef) on $SiteURL" -ForegroundColor Red
-                    Write-Log "Located EEEU/Everyone in file: $($file.FieldValues.FileLeafRef) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
+                    Write-Host "Located '$($_.Name)' in file: $($file.FieldValues.FileLeafRef) on $SiteURL" -ForegroundColor Red
+                    Write-Log "Located '$($_.Name)' in file: $($file.FieldValues.FileLeafRef) on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
                 }
             }
         }
@@ -1024,8 +1024,8 @@ function Find-EEEUinSiteGroups {
                 CreatedDate = ''
             }
             $EEEUOccurrences.Value.Add($newOccurrence) | Out-Null
-            Write-Host "Located EEEU/Everyone in Site Group '$($group.Title)' on $SiteURL" -ForegroundColor Red
-            Write-Log "Located EEEU/Everyone in Site Group '$($group.Title)' on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
+            Write-Host "Located '$($m.Title)' in Site Group '$($group.Title)' on $SiteURL" -ForegroundColor Red
+            Write-Log "Located '$($m.Title)' in Site Group '$($group.Title)' on $SiteURL - Added to collection (Count: $($EEEUOccurrences.Value.Count))"
         }
     }
 }
