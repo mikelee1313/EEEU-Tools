@@ -992,9 +992,9 @@ function Find-EEEUinSiteGroups {
     Write-Log "Checking site group level permissions for $siteURL"
 
     $Groups = Invoke-WithRetry -ScriptBlock {
-        $web = Get-PnPWeb
+        $web = Get-PnPWeb -Includes ParentWeb
 
-        if ($web.IsRootWeb) {
+        if (-not $web.ParentWeb.Id) {
             Get-PnPProperty -ClientObject $web -Property SiteGroups -ErrorAction SilentlyContinue
         }
         else {
