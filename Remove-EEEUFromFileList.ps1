@@ -14,6 +14,8 @@
     File Name      : Remove-EEEUFromFileList.ps1
     Author         : Mike Lee
     Date           : 9/22/25
+    Updated        : 2/11/26 - added handling for document library paths and improved logging, 
+    added safety check to prevent orphaned permissions, added subsite URL resolution, improved error handling and logging
 
 .DISCLAIMER
     Disclaimer: The sample scripts are provided AS IS without warranty of any kind. 
@@ -46,15 +48,16 @@
     6. Logs all operations to a log file
 #>
 # Tenant Level Information
-$appID = "5baa1427-1e90-4501-831d-a8e67465f0d9"                 # This is your Entra App ID
-$thumbprint = "B696FDCFE1453F3FBC6031F54DE988DA0ED905A9"        # This is certificate thumbprint
-$tenant = "85612ccb-4c28-4a34-88df-a538cc139a51"                # This is your Tenant ID
+$appID = "1e488dc4-1977-48ef-8d4d-9856f4e04536"                 # This is your Entra App ID
+$thumbprint = "5EAD7303A5C7E27DB4245878AD554642940BA082"        # This is certificate thumbprint
+$tenant = "9cfc42cb-51da-4055-87e9-b20a170b6ba3"                # This is your Tenant ID
 
 # Script Parameters
 $LoginName = "c:0-.f|rolemanager|spo-grid-all-users/$tenant"    # User principal name for "Everyone except external users"
-$csvFilePath = "C:\Temp\Find_EEEU_In_Sites_20250625_152020.csv" # Path to the CSV file containing file list
+$csvFilePath = "C:\temp\Find_EEEU_In_Sites_20250507_102231.csv" # Path to the CSV file containing file list
 $startime = Get-Date -Format "yyyyMMdd_HHmmss"                  # Timestamp for log file
 $logFilePath = "$env:TEMP\Remove_EEEU_From_File_List_$startime.txt" # Path to the log file
+$orphanedCheck = $false                                              # If true, skip removing EEEU when it is the only permission on an object
 
 # Setup logging
 function Write-Log {
@@ -209,9 +212,26 @@ function Remove-EEEUfromFile {
     try {
         $RoleAssignment = @()
         $Permissions = Get-PnPProperty -ClientObject $file -Property RoleAssignments
+
+        # Safety check: count role assignments that are NOT EEEU to determine if EEEU is the only principal on the object
+        # Other principals (even with Limited Access) indicate the object is still accessible via site/list-level permissions
+        if ($orphanedCheck) {
+            $otherPrincipalCount = 0
+            foreach ($ra in $Permissions) {
+                Get-PnPProperty -ClientObject $ra -Property RoleDefinitionBindings, Member
+                if ($ra.Member.LoginName -ne $LoginName) { $otherPrincipalCount++ }
+            }
+        }
+
         foreach ($RoleAssignment in $Permissions) {
             Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
             if ($RoleAssignment.Member.LoginName -eq $LoginName) {
+                # If orphanedCheck is enabled and EEEU is the only principal, skip removal to avoid leaving the object with no permissions
+                if ($orphanedCheck -and $otherPrincipalCount -eq 0) {
+                    Write-Host "WARNING: EEEU is the only permission on file: $($file.FieldValues.FileLeafRef) on $SiteURL - skipping removal to prevent orphaned permissions" -ForegroundColor Red
+                    Write-Log "EEEU is the only permission on file: $($file.FieldValues.FileLeafRef) on $SiteURL - skipping removal to prevent orphaned permissions" "WARNING"
+                    return
+                }
                 $roleuser = $RoleAssignment.Member.LoginName
                 $rolelevel = $RoleAssignment.RoleDefinitionBindings
                 foreach ($role in $rolelevel) {
@@ -238,9 +258,26 @@ function Remove-EEEUfromFolder {
     try {
         $RoleAssignment = @()
         $Permissions = Get-PnPProperty -ClientObject $folder -Property RoleAssignments
+
+        # Safety check: count role assignments that are NOT EEEU to determine if EEEU is the only principal on the object
+        # Other principals (even with Limited Access) indicate the object is still accessible via site/list-level permissions
+        if ($orphanedCheck) {
+            $otherPrincipalCount = 0
+            foreach ($ra in $Permissions) {
+                Get-PnPProperty -ClientObject $ra -Property RoleDefinitionBindings, Member
+                if ($ra.Member.LoginName -ne $LoginName) { $otherPrincipalCount++ }
+            }
+        }
+
         foreach ($RoleAssignment in $Permissions) {
             Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
             if ($RoleAssignment.Member.LoginName -eq $LoginName) {
+                # If orphanedCheck is enabled and EEEU is the only principal, skip removal to avoid leaving the object with no permissions
+                if ($orphanedCheck -and $otherPrincipalCount -eq 0) {
+                    Write-Host "WARNING: EEEU is the only permission on folder: $($folder.FieldValues.FileLeafRef) on $SiteURL - skipping removal to prevent orphaned permissions" -ForegroundColor Red
+                    Write-Log "EEEU is the only permission on folder: $($folder.FieldValues.FileLeafRef) on $SiteURL - skipping removal to prevent orphaned permissions" "WARNING"
+                    return
+                }
                 $roleuser = $RoleAssignment.Member.LoginName
                 $rolelevel = $RoleAssignment.RoleDefinitionBindings
                 foreach ($role in $rolelevel) {
@@ -267,9 +304,26 @@ function Remove-EEEUfromList {
     try {
         $RoleAssignment = @()
         $Permissions = Get-PnPProperty -ClientObject $list -Property RoleAssignments
+
+        # Safety check: count role assignments that are NOT EEEU to determine if EEEU is the only principal on the object
+        # Other principals (even with Limited Access) indicate the object is still accessible via site/list-level permissions
+        if ($orphanedCheck) {
+            $otherPrincipalCount = 0
+            foreach ($ra in $Permissions) {
+                Get-PnPProperty -ClientObject $ra -Property RoleDefinitionBindings, Member
+                if ($ra.Member.LoginName -ne $LoginName) { $otherPrincipalCount++ }
+            }
+        }
+
         foreach ($RoleAssignment in $Permissions) {
             Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
             if ($RoleAssignment.Member.LoginName -eq $LoginName) {
+                # If orphanedCheck is enabled and EEEU is the only principal, skip removal to avoid leaving the object with no permissions
+                if ($orphanedCheck -and $otherPrincipalCount -eq 0) {
+                    Write-Host "WARNING: EEEU is the only permission on list: $($list.Title) on $SiteURL - skipping removal to prevent orphaned permissions" -ForegroundColor Red
+                    Write-Log "EEEU is the only permission on list: $($list.Title) on $SiteURL - skipping removal to prevent orphaned permissions" "WARNING"
+                    return
+                }
                 $roleuser = $RoleAssignment.Member.LoginName
                 $rolelevel = $RoleAssignment.RoleDefinitionBindings
                 foreach ($role in $rolelevel) {
@@ -296,9 +350,26 @@ function Remove-EEEUfromWeb {
     try {
         $RoleAssignment = @()
         $Permissions = Get-PnPProperty -ClientObject $web -Property RoleAssignments
+
+        # Safety check: count role assignments that are NOT EEEU to determine if EEEU is the only principal on the object
+        # Other principals (even with Limited Access) indicate the object is still accessible via site/list-level permissions
+        if ($orphanedCheck) {
+            $otherPrincipalCount = 0
+            foreach ($ra in $Permissions) {
+                Get-PnPProperty -ClientObject $ra -Property RoleDefinitionBindings, Member
+                if ($ra.Member.LoginName -ne $LoginName) { $otherPrincipalCount++ }
+            }
+        }
+
         foreach ($RoleAssignment in $Permissions) {
             Get-PnPProperty -ClientObject $RoleAssignment -Property RoleDefinitionBindings, Member
             if ($RoleAssignment.Member.LoginName -eq $LoginName) {
+                # If orphanedCheck is enabled and EEEU is the only principal, skip removal to avoid leaving the object with no permissions
+                if ($orphanedCheck -and $otherPrincipalCount -eq 0) {
+                    Write-Host "WARNING: EEEU is the only permission on web: $($web.Title) on $SiteURL - skipping removal to prevent orphaned permissions" -ForegroundColor Red
+                    Write-Log "EEEU is the only permission on web: $($web.Title) on $SiteURL - skipping removal to prevent orphaned permissions" "WARNING"
+                    return
+                }
                 $roleuser = $RoleAssignment.Member.LoginName
                 $rolelevel = $RoleAssignment.RoleDefinitionBindings
                 foreach ($role in $rolelevel) {
