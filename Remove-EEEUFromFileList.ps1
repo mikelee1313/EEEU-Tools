@@ -57,7 +57,7 @@ $LoginName = "c:0-.f|rolemanager|spo-grid-all-users/$tenant"    # User principal
 $csvFilePath = "C:\temp\Find_EEEU_In_Sites_20250507_102231.csv" # Path to the CSV file containing file list
 $startime = Get-Date -Format "yyyyMMdd_HHmmss"                  # Timestamp for log file
 $logFilePath = "$env:TEMP\Remove_EEEU_From_File_List_$startime.txt" # Path to the log file
-$orphanedCheck = $false                                              # If true, skip removing EEEU when it is the only permission on an object
+$orphanedCheck = $true                                              # If true, skip removing EEEU when it is the only permission on an object
 
 # Setup logging
 function Write-Log {
