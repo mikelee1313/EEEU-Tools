@@ -93,8 +93,38 @@ function Get-File {
         return $file
     }
     catch {
-        Write-Log "Failed to retrieve file: $_" "ERROR"
-        throw $_
+        Write-Log "Initial Get-PnPFile failed for: $FilePath - $_" "WARNING"
+        Write-Log "Attempting fallback: resolving file via parent folder and list item query..." "INFO"
+        
+        try {
+            # Extract the folder path and file name from the full path
+            $folderPath = $FilePath.Substring(0, $FilePath.LastIndexOf("/"))
+            $fileName = $FilePath.Substring($FilePath.LastIndexOf("/") + 1)
+            
+            # Get the folder's parent list, then query for the file by name within that folder
+            $folder = Get-PnPFolder -Url $folderPath -Includes ListItemAllFields
+            $parentList = Get-PnPProperty -ClientObject $folder -Property ListItemAllFields
+            $listId = Get-PnPProperty -ClientObject $folder.ListItemAllFields -Property ParentList
+            $list = Get-PnPList -Identity $listId.Id
+            
+            # Use a CAML query to find the file by its name and folder path
+            $camlQuery = "<View Scope='RecursiveAll'><Query><Where><And><Eq><FieldRef Name='FileLeafRef'/><Value Type='Text'>$fileName</Value></Eq><Eq><FieldRef Name='FileDirRef'/><Value Type='Text'>$folderPath</Value></Eq></And></Where></Query></View>"
+            $items = Get-PnPListItem -List $list -Query $camlQuery
+            
+            if ($items -and $items.Count -gt 0) {
+                $file = $items[0]
+                Write-Log "Retrieved file via fallback: $($file.FieldValues.FileLeafRef) on $SiteURL"
+                return $file
+            }
+            else {
+                Write-Log "Fallback: File not found via CAML query: $FilePath" "ERROR"
+                throw "File not found: $FilePath"
+            }
+        }
+        catch {
+            Write-Log "Fallback also failed for file: $FilePath - $_" "ERROR"
+            throw $_
+        }
     }
 }
 
@@ -287,6 +317,44 @@ function Remove-EEEUfromWeb {
     }
 }
 
+# Resolve the correct web URL for an item path (handles classic subsites)
+function Resolve-SubsiteURL {
+    param (
+        [string]$SiteURL,
+        [string]$ObjectPath
+    )
+    try {
+        # Connect to the provided site URL first
+        Connect-ToSharePoint -SiteURL $SiteURL
+
+        # Use GetSubwebs to get all direct child webs
+        $web = Get-PnPWeb -Includes Webs
+        $subwebs = Get-PnPProperty -ClientObject $web -Property Webs
+
+        # Check if any subweb's ServerRelativeUrl is a prefix of the ObjectPath
+        foreach ($subweb in $subwebs) {
+            $subwebUrl = $subweb.ServerRelativeUrl
+            if ($ObjectPath.StartsWith($subwebUrl + "/") -or $ObjectPath -eq $subwebUrl) {
+                # Found a matching subsite - resolve its full URL and recurse deeper
+                $subSiteFullURL = $SiteURL.TrimEnd('/').Replace($web.ServerRelativeUrl.TrimEnd('/'), '') + $subwebUrl
+                Write-Log "Detected subsite: $subSiteFullURL for path: $ObjectPath"
+                Write-Host "Detected subsite: $subSiteFullURL" -ForegroundColor Magenta
+                
+                # Recurse to check for deeper subsites
+                return Resolve-SubsiteURL -SiteURL $subSiteFullURL -ObjectPath $ObjectPath
+            }
+        }
+
+        # No matching subweb found - the current SiteURL is the correct web
+        Write-Log "Resolved web URL for ObjectPath '$ObjectPath': $SiteURL"
+        return $SiteURL
+    }
+    catch {
+        Write-Log "Error resolving subsite for path $ObjectPath from $SiteURL - using original URL: $_" "WARNING"
+        return $SiteURL
+    }
+}
+
 # Process each object based on its type
 function Invoke-SharePointObjectProcessing {
     param (
@@ -296,6 +364,14 @@ function Invoke-SharePointObjectProcessing {
     )
     
     try {
+        # Resolve the correct web URL (handles classic subsites)
+        $resolvedSiteURL = Resolve-SubsiteURL -SiteURL $SiteURL -ObjectPath $ObjectPath
+        if ($resolvedSiteURL -ne $SiteURL) {
+            Write-Host "Resolved subsite URL: $resolvedSiteURL (original: $SiteURL)" -ForegroundColor Magenta
+            Write-Log "Resolved subsite URL from $SiteURL to $resolvedSiteURL for path $ObjectPath"
+            $SiteURL = $resolvedSiteURL
+        }
+
         Connect-ToSharePoint -SiteURL $SiteURL
         
         Write-Host "Processing $ObjectType object: $ObjectPath" -ForegroundColor Yellow
